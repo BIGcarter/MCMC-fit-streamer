@@ -25,8 +25,8 @@ python fit_streamer_ns.py          # Nested sampling fit (blue lobe, dynesty, ex
 
 Modified Mendoza model: radial infall + rigid-body rotation (ω × r) around a user-defined axis, with optional linear drag.
 
-| Parameter | Symbol | Unit | Description | Prior (blue) |
-|-----------|--------|------|-------------------|-------------|
+| Parameter | Symbol | Unit | Description |
+|-----------|--------|------|-------------------|
 | `z` | — | AU | LOS height of the infall starting point |
 | `v_r` | — | km/s | Radial velocity at the starting point (infall if negative)|
 | `log_omega` | log₁₀(ω) | log₁₀(round/yr) | Rotation angular velocity around the disk axis |
