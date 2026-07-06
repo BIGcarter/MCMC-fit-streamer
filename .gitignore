@@ -1,0 +1,11 @@
+*.html
+*.pdf
+*.png
+*.txt
+*.npz
+*.md
+!README.md
+
+.DS_Store
+.claude/
+__pycache__/
