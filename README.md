@@ -1,14 +1,12 @@
-# Ballistic Infall Model for IRAS 09018-4816
+# Modified Mendoza's Infall Model 
 
-3D ballistic infall model (streamer) for protostellar source IRAS 09018-4816.
 
 ## Quick Start
 
 ```bash
 python run_streamer_model.py      # Single-trajectory visualization
 python fit_streamer.py             # MCMC fit (blue lobe, emcee)
-python fit_streamer_red.py         # MCMC fit (red lobe, emcee)
-python fit_streamer_ns.py          # Nested sampling fit (blue lobe, dynesty)
+python fit_streamer_ns.py          # Nested sampling fit (blue lobe, dynesty, experimental)
 ```
 
 ## Module Overview
