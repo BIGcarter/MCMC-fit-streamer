@@ -21,28 +21,23 @@ python fit_streamer_ns.py          # Nested sampling fit (blue lobe, dynesty, ex
 | `fit_streamer_ns.py` | Nested sampling: Chamfer loss + dynesty + Plotly |
 | `estimate_ic.ipynb` | Jupyter notebook for interactively exploring IC parameters |
 
-## Parameters
+## Model Parameters
 
-All fitting scripts use a declarative `PARAM_CONFIG` dict. Set `is_constant=True/False` to switch between free and fixed parameters.
+Modified Mendoza model: radial infall + rigid-body rotation (ω × r) around a user-defined axis, with optional linear drag.
 
-### Free parameters (Mendoza model)
+| Parameter | Symbol | Unit | Description | Prior (blue) |
+|-----------|--------|------|-------------------|-------------|
+| `z` | — | AU | LOS height of the infall starting point |
+| `v_r` | — | km/s | Radial velocity at the starting point (infall if negative)|
+| `log_omega` | log₁₀(ω) | log₁₀(round/yr) | Rotation angular velocity around the disk axis |
+| `theta_axis` | θ_axis | deg | Zenith angle of the rotation axis (from +y toward X-Z plane)|
+| `phi_axis` | φ_axis | deg | Azimuth angle of the rotation axis (from +z in X-Z plane)|
+| `M` | — | M☉ | Mass of the central protostar|
+| `alpha` | α | — | Linear drag coefficient (set large to turn off drag)|
+| `x` | — | AU | Sky-plane X-coordinate of the starting point (WCS convention)|
+| `y` | — | AU | Sky-plane Y-coordinate of the starting point (WCS convention)|
 
-| Parameter | Prior range | Description |
-|-----------|------------|-------------|
-| `z` | [50, 1500] or [−1000, 0] AU | Height of infall starting point |
-| `v_r` | [−10, 1] km/s | Radial velocity |
-| `log_omega` | [−6, −3] | log₁₀ rotation rate (round/yr) |
-| `theta_axis` | [0, 90]° | Rotation axis zenith angle |
-| `phi_axis` | [0, 180]° | Rotation axis azimuth angle |
-
-### Fixed parameters
-
-| Parameter | Value (blue) | Value (red) |
-|-----------|-------------|-------------|
-| M | 15 M☉ | 15 M☉ |
-| alpha | 500 (or 1e6) | 500 |
-| x | −440 AU | −440 AU |
-| y | 1200 AU | −1000 AU |
+Fitting scripts use a declarative `PARAM_CONFIG` dict — set `is_constant=True/False` to switch any parameter between free and fixed.
 
 ## Coordinate Convention
 
