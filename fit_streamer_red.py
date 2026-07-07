@@ -1,8 +1,10 @@
 import multiprocessing
+import os
 
 import numpy as np
 from scipy.spatial import KDTree
 import emcee
+from emcee.backends import HDFBackend
 import corner
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -11,7 +13,7 @@ from matplotlib.cm import RdBu_r
 
 from streamer_ic import (get_streamer_initial_state, cartesian_to_spherical,
                          get_axis_unit_vector, build_local_frame)
-from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere
+from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere, azimuth_cutoff_idx
 
 # ============================================================
 # Parameter configuration (set is_constant=True/False)
@@ -20,11 +22,11 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 PARAM_CONFIG = {
     'z':           {'is_constant': False, 'prior_range': [-1000, 0],     'init': -200,  'label': 'z [AU]'},
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],       'init': -2,    'label': 'v_r [km/s]'},
-    'log_omega':   {'is_constant': False, 'prior_range': [-6, -3],       'init': -4.3,  'label': 'log10(ω) [round/yr]'},
-    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'θ_axis [deg]'},
-    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'φ_axis [deg]'},
-    'M':           {'is_constant': True,  'prior_range': None,           'init': 15.0,  'label': 'M [M☉]'},
-    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500.0, 'label': 'α'},
+    'log_omega':   {'is_constant': False, 'prior_range': [-6, -3],       'init': -4.3,  'label': 'log10(omega) [round/yr]'},
+    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'theta_axis [deg]'},
+    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'phi_axis [deg]'},
+    'M':           {'is_constant': True,  'prior_range': None,           'init': 15.0,  'label': 'M [M_sun]'},
+    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500.0, 'label': 'alpha'},
     'x':           {'is_constant': True,  'prior_range': None,           'init': -440.0,'label': 'x [AU]'},
     'y':           {'is_constant': True,  'prior_range': None,           'init': -1000.0,'label': 'y [AU]'},
 }
@@ -51,6 +53,7 @@ _param_labels = [PARAM_CONFIG[n]['label'] for n in _free_names]
 
 # --- Remaining fixed config ---
 STOPPING_R = 100.0
+AZIMUTH_MAX_DELTA_DEG = 180.0
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
 
@@ -96,7 +99,13 @@ def compute_trajectory(params):
         )
         if not sol.success:
             return None, None, None, None
-        return sol.y[0].copy(), sol.y[1].copy(), sol.y[2].copy(), sol.y[5].copy()
+        x_arr = sol.y[0].copy()
+        y_arr = sol.y[1].copy()
+        z_arr = sol.y[2].copy()
+        v_arr = sol.y[5].copy()
+
+        cut = azimuth_cutoff_idx(x_arr, y_arr, max_delta_deg=AZIMUTH_MAX_DELTA_DEG)
+        return x_arr[:cut+1], y_arr[:cut+1], z_arr[:cut+1], v_arr[:cut+1]
     except Exception:
         return None, None, None, None
 
@@ -113,18 +122,22 @@ def _scale_ppv(traj_ppv):
     return scaled
 
 
+_DATA_KD_TREE = None
+
+
 def chamfer_loss(traj_x, traj_y, traj_v, data_x, data_y, data_v, data_flux,
                  n_sample=200):
-    traj_ppv = _scale_ppv(np.array([traj_x, traj_y, traj_v]))
-    data_ppv = _scale_ppv(np.array([data_x, data_y, data_v]))
+    global _DATA_KD_TREE
 
-    # data -> model (flux-weighted)
+    traj_ppv = _scale_ppv(np.array([traj_x, traj_y, traj_v]))
+
+    # data -> model
     kd_traj = KDTree(traj_ppv.T)
+    data_ppv = _scale_ppv(np.array([data_x, data_y, data_v]))
     d_dm, _ = kd_traj.query(data_ppv.T)
-    # loss_dm = np.sum(data_flux * d_dm**2)
     loss_dm = np.sum(d_dm**2)
 
-    # model -> data (unweighted, uniform sample)
+    # model -> data
     n_pts = traj_ppv.shape[1]
     if n_pts <= n_sample:
         sample_ppv = traj_ppv
@@ -132,8 +145,9 @@ def chamfer_loss(traj_x, traj_y, traj_v, data_x, data_y, data_v, data_flux,
         idx = np.linspace(0, n_pts - 1, n_sample, dtype=int)
         sample_ppv = traj_ppv[:, idx]
 
-    kd_data = KDTree(data_ppv.T)
-    d_md, _ = kd_data.query(sample_ppv.T)
+    if _DATA_KD_TREE is None:
+        _DATA_KD_TREE = KDTree(data_ppv.T)
+    d_md, _ = _DATA_KD_TREE.query(sample_ppv.T)
     loss_md = np.sum(d_md**2)
 
     return loss_dm + loss_md
@@ -182,7 +196,8 @@ def log_probability(theta, data_x, data_y, data_v, data_flux):
 
 def run_mcmc(data_x, data_y, data_v, data_flux,
              n_walkers=32, n_burnin=500, n_production=2000,
-             init_params=None, rng_seed=42, n_workers=1):
+             init_params=None, rng_seed=42, n_workers=1,
+             backend_filename='mcmc_chain.h5', thin_by=50):
     if init_params is None:
         init_params = _init_defaults.copy()
 
@@ -207,34 +222,56 @@ def run_mcmc(data_x, data_y, data_v, data_flux,
         pool = multiprocessing.Pool(n_workers)
         print(f'Using {n_workers} parallel workers')
 
+    # --- Burn-in: use a temporary backend (discarded after) ---
+    burn_backend = HDFBackend('_burnin_temp_red.h5')
+    burn_backend.reset(n_walkers, ndim)
+
     sampler = emcee.EnsembleSampler(
         n_walkers, ndim, log_probability,
         args=(data_x, data_y, data_v, data_flux),
         moves=moves,
+        backend=burn_backend,
         pool=pool,
     )
 
     try:
         print(f'Burn-in: {n_burnin} steps...')
-        state = sampler.run_mcmc(p0, n_burnin, progress=True)
-        sampler.reset()
+        sampler.run_mcmc(p0, n_burnin, progress=True)
+        final_state = sampler.get_last_sample()
+
+        # --- Production: new backend, writes to disk in real time ---
+        prod_backend = HDFBackend(backend_filename)
+        prod_backend.reset(n_walkers, ndim)
+
+        sampler = emcee.EnsembleSampler(
+            n_walkers, ndim, log_probability,
+            args=(data_x, data_y, data_v, data_flux),
+            moves=moves,
+            backend=prod_backend,
+            pool=pool,
+        )
 
         print(f'Production: {n_production} steps...')
-        sampler.run_mcmc(state, n_production, progress=True)
+        sampler.run_mcmc(final_state, n_production, progress=True)
 
-        flat_samples = sampler.get_chain(flat=True)
+        flat_samples = sampler.get_chain(flat=True, thin=thin_by)
+        print(f'Thinned chain: {flat_samples.shape[0]} samples (thin={thin_by})')
 
         try:
-            tau = sampler.get_autocorr_time()
+            tau = sampler.get_autocorr_time(thin=thin_by)
             print(f'Autocorr time: {tau}')
         except Exception:
             print('Autocorr time: not converged')
 
         print(f'Acceptance fraction: {sampler.acceptance_fraction.mean():.3f}')
+        print(f'Chain saved to {backend_filename}')
     finally:
         if pool is not None:
             pool.close()
             pool.join()
+        burn_backend_file = '_burnin_temp_red.h5'
+        if os.path.exists(burn_backend_file):
+            os.remove(burn_backend_file)
 
     return sampler, flat_samples
 
@@ -458,12 +495,13 @@ if __name__ == '__main__':
 
     sampler, flat_samples = run_mcmc(x_data, y_data, v_data, f_data,
                                      n_walkers=64, n_burnin=10000, n_production=200000,
-                                     n_workers=10)
+                                     n_workers=10,
+                                     backend_filename='mcmc_chain_red.h5',
+                                     thin_by=50)
 
     np.savez('mcmc_samples_red.npz',
-             chain=sampler.get_chain(),
              flat_samples=flat_samples,
-             log_prob=sampler.get_log_prob(),
+             log_prob=sampler.get_log_prob(thin=50),
              acceptance_fraction=sampler.acceptance_fraction,
     )
 

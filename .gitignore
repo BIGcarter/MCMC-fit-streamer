@@ -4,8 +4,11 @@
 *.txt
 *.npz
 *.md
+*.h5
 !README.md
 
 .DS_Store
 .claude/
 __pycache__/
+
+./channel-peak.ipynb

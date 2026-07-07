@@ -5,7 +5,7 @@ from matplotlib.colors import Normalize
 from matplotlib.cm import RdBu_r
 
 from streamer_ic import get_streamer_initial_state, cartesian_to_spherical, build_local_frame, get_axis_unit_vector
-from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere
+from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere, azimuth_cutoff_idx
 
 # ============================================================
 # Configuration
@@ -51,6 +51,7 @@ elif model_type == 'ulrich':
 # Integration settings
 drag_func = linear_drag(alpha=500)
 stopping_r = 150.0   # AU — terminate when particle reaches this radius
+azimuth_max_delta_deg = 180.0  # deg — terminate when azimuth change exceeds this
 t_span = (0, 1500)
 t_eval = np.linspace(t_span[0], t_span[1], 1200)
 
@@ -78,6 +79,12 @@ else:
 
 x_orb, y_orb, z_orb = sol.y[0], sol.y[1], sol.y[2]
 V_los = sol.y[5]  # vz as line-of-sight velocity
+
+cut = azimuth_cutoff_idx(x_orb, y_orb, max_delta_deg=azimuth_max_delta_deg)
+x_orb = x_orb[:cut+1]
+y_orb = y_orb[:cut+1]
+z_orb = z_orb[:cut+1]
+V_los = V_los[:cut+1]
 
 # Shared color normalization for V_los
 v_range = [-20, 20]

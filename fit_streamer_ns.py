@@ -14,7 +14,7 @@ from matplotlib.cm import RdBu_r
 
 from streamer_ic import (get_streamer_initial_state, cartesian_to_spherical,
                          get_axis_unit_vector, build_local_frame)
-from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere
+from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere, azimuth_cutoff_idx
 
 # ============================================================
 # Configuration
@@ -38,6 +38,7 @@ N_CPUS = 10
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
 STOPPING_R = 150.0
+AZIMUTH_MAX_DELTA_DEG = 180.0
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 
@@ -108,7 +109,13 @@ def compute_trajectory(z, v_r, omega, theta_axis, phi_axis, M, alpha, x, y):
         sol = integrate_trajectory(initial_state, T_SPAN, T_EVAL, GM, drag_func, events=events)
         if not sol.success:
             return None, None, None, None
-        return sol.y[0].copy(), sol.y[1].copy(), sol.y[2].copy(), sol.y[5].copy()
+        x_arr = sol.y[0].copy()
+        y_arr = sol.y[1].copy()
+        z_arr = sol.y[2].copy()
+        v_arr = sol.y[5].copy()
+
+        cut = azimuth_cutoff_idx(x_arr, y_arr, max_delta_deg=AZIMUTH_MAX_DELTA_DEG)
+        return x_arr[:cut+1], y_arr[:cut+1], z_arr[:cut+1], v_arr[:cut+1]
     except Exception:
         return None, None, None, None
 
