@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from scipy.spatial import KDTree
 import multiprocessing as mp
@@ -21,15 +22,15 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [0, 1500]},
-    'v_r':         {'is_constant': False, 'prior_range': [-10, 1]},
-    'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True},
-    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90]},
-    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180]},
-    'M':           {'is_constant': True,  'value': 15.0},
-    'alpha':       {'is_constant': True,  'value': 500.0},
-    'x':           {'is_constant': True,  'value': -500.0},
-    'y':           {'is_constant': True,  'value': 1200.0},
+    'z':           {'is_constant': False, 'prior_range': [0, 1500],       'label': r'$z$ [AU]'},
+    'v_r':         {'is_constant': False, 'prior_range': [-10, 1],        'label': r'$v_r$ [km/s]'},
+    'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega)$ [round/yr]'},
+    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],         'label': r'$\theta_{axis}$ [deg]'},
+    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],        'label': r'$\phi_{axis}$ [deg]'},
+    'M':           {'is_constant': True,  'value': 15.0,                  'label': r'$M$ [$M_\odot$]'},
+    'alpha':       {'is_constant': True,  'value': 500.0,                 'label': r'$\alpha$'},
+    'x':           {'is_constant': True,  'value': -500.0,                'label': r'$x$ [AU]'},
+    'y':           {'is_constant': True,  'value': 1200.0,                'label': r'$y$ [AU]'},
 }
 
 NLIVE_INIT = 5000
@@ -58,6 +59,7 @@ for _name, _cfg in PARAM_CONFIG.items():
 
 N_FREE = len(_free_names)
 _prior_bounds = np.array(_prior_bounds)
+_param_labels = [PARAM_CONFIG[n]['label'] for n in _free_names]
 
 print(f'Free parameters ({N_FREE}): {_free_names}')
 print(f'Constants: {list(_constant_values.keys())}')
@@ -85,28 +87,40 @@ DATA_XY_YRANGE = np.ptp(_data_y)
 # Trajectory wrapper
 # ============================================================
 
-def compute_trajectory(z, v_r, omega, theta_axis, phi_axis, M, alpha, x, y):
+def _theta_to_params(theta):
+    params = dict(_constant_values)
+    for i, name in enumerate(_free_names):
+        params[name] = theta[i]
+    return params
+
+
+def compute_trajectory(params):
+    z = params['z']
+    x = params.get('x', _constant_values.get('x'))
+    y = params.get('y', _constant_values.get('y'))
+
     r0, theta_part, phi_part = cartesian_to_spherical(x, y, z)
 
     ic_params = dict(
         r0=r0,
         theta_part_deg=theta_part,
         phi_part_deg=phi_part,
-        v_r=v_r,
-        omega_round_yr=omega,
-        theta_axis_deg=theta_axis,
-        phi_axis_deg=phi_axis,
+        v_r=params['v_r'],
+        omega_round_yr=params['omega'],
+        theta_axis_deg=params['theta_axis'],
+        phi_axis_deg=params['phi_axis'],
     )
 
     x0, y0, z0, vx0, vy0, vz0 = get_streamer_initial_state('mendoza', **ic_params)
     initial_state = [x0, y0, z0, vx0, vy0, vz0]
 
-    GM = gm_from_mstar(M)
-    drag_func = linear_drag(alpha=alpha)
-    events = stopping_sphere(STOPPING_R)
+    M_val = params.get('M', _constant_values.get('M'))
+    alpha_val = params.get('alpha', _constant_values.get('alpha'))
+    GM = gm_from_mstar(M_val)
+    drag_func = linear_drag(alpha=alpha_val)
 
     try:
-        sol = integrate_trajectory(initial_state, T_SPAN, T_EVAL, GM, drag_func, events=events)
+        sol = integrate_trajectory(initial_state, T_SPAN, T_EVAL, GM, drag_func, events=stopping_sphere(STOPPING_R))
         if not sol.success:
             return None, None, None, None
         x_arr = sol.y[0].copy()
@@ -169,20 +183,15 @@ def prior_transform(u):
 # ============================================================
 
 def log_likelihood(theta):
-    params = dict(_constant_values)
-    for i, name in enumerate(_free_names):
-        params[name] = theta[i]
+    params = _theta_to_params(theta)
 
     try:
-        traj_x, traj_y, traj_z, traj_v = compute_trajectory(
-            params['z'], params['v_r'], params['omega'],
-            params['theta_axis'], params['phi_axis'],
-            params['M'], params['alpha'],
-            params['x'], params['y'],
-        )
+        traj_x, traj_y, traj_z, traj_v = compute_trajectory(params)
     except Exception:
         return -np.inf
 
+    if traj_x is None:
+        return -np.inf
 
     x_range = np.ptp(traj_x)
     y_range = np.ptp(traj_y)
@@ -191,23 +200,6 @@ def log_likelihood(theta):
 
     loss = chamfer_loss(traj_x, traj_y, traj_v)
     return -0.5 * loss
-
-
-# ============================================================
-# Label helper
-# ============================================================
-
-def _name_to_label(name):
-    mapping = {
-        'z': r'$z$ [AU]',
-        'v_r': r'$v_r$ [km/s]',
-        'omega': r'$\log_{10}(\omega)$ [round/yr]',
-        'theta_axis': r'$\theta_{axis}$ [deg]',
-        'phi_axis': r'$\phi_{axis}$ [deg]',
-        'M': r'$M$ [$M_\odot$]',
-        'alpha': r'$\alpha$',
-    }
-    return mapping.get(name, name)
 
 
 # ============================================================
@@ -234,6 +226,7 @@ if __name__ == '__main__':
     sampler.run_nested(
         dlogz_init=0.02,
         nlive_batch=1000,
+        checkpoint_file='ns_checkpoint.h5',
         )
     print('Done. Wake up.')
 
@@ -276,7 +269,7 @@ if __name__ == '__main__':
     print('Summary plot saved to ns_summary.png')
 
     # --- Trace plots ---
-    param_labels = [_name_to_label(name) for name in _free_names]
+    param_labels = _param_labels
     fig_trace, axes_trace = dyplot.traceplot(results_viz, labels=param_labels)
     fig_trace.savefig('ns_trace.png', dpi=150)
     print('Trace plots saved to ns_trace.png')
@@ -316,21 +309,17 @@ if __name__ == '__main__':
     best_theta = samples[best_idx]
     best_logl = logl[best_idx]
 
-    params_bf = dict(_constant_values)
-    for i, name in enumerate(_free_names):
-        params_bf[name] = best_theta[i]
+    params_bf = _theta_to_params(best_theta)
 
     print(f'\nBest-fit params (lnL = {best_logl:.2f}):')
     for name in _free_names:
         print(f'  {name} = {params_bf[name]:.4g}')
     print(f'  lnZ = {logz:.3f} +/- {logzerr:.3f}')
 
-    traj_x, traj_y, traj_z, traj_v = compute_trajectory(
-        params_bf['z'], params_bf['v_r'], params_bf['omega'],
-        params_bf['theta_axis'], params_bf['phi_axis'],
-        params_bf['M'], params_bf['alpha'],
-        params_bf['x'], params_bf['y'],
-    )
+    traj_x, traj_y, traj_z, traj_v = compute_trajectory(params_bf)
+    if traj_x is None:
+        print('WARNING: Best-fit trajectory computation failed!')
+        sys.exit(1)
 
     # --- Posterior trajectory samples ---
     N_LINES = 100
@@ -341,15 +330,8 @@ if __name__ == '__main__':
                              replace=False)
     for idx in idx_samples:
         p = equal_samples[idx]
-        pm = dict(_constant_values)
-        for i, name in enumerate(_free_names):
-            pm[name] = p[i]
-        tx, ty, tz, tv = compute_trajectory(
-            pm['z'], pm['v_r'], pm['omega'],
-            pm['theta_axis'], pm['phi_axis'],
-            pm['M'], pm['alpha'],
-            pm['x'], pm['y'],
-        )
+        pm = _theta_to_params(p)
+        tx, ty, tz, tv = compute_trajectory(pm)
         if tx is not None:
             multi_trajs.append((tx, ty, tz, tv))
     print(f'Posterior trajectories: {len(multi_trajs)}/{min(N_LINES, len(equal_samples))} computed')
@@ -487,7 +469,7 @@ if __name__ == '__main__':
     )
     fig.update_layout(
         template='plotly_white', showlegend=False,
-        scene1=dict(xaxis=dict(title='X'), yaxis=dict(title='Y'),
+        scene1=dict(xaxis=dict(title='X', autorange='reversed'), yaxis=dict(title='Y'),
                      zaxis=dict(title='Z'), aspectmode='data'),
         scene2=dict(
             xaxis=dict(title='X'), yaxis=dict(title='Y'),
@@ -505,3 +487,9 @@ if __name__ == '__main__':
     print(f'\nParameter ranges (16%, 50%, 84%):')
     for i, name in enumerate(_free_names):
         print(f'  {name}: {q[1, i]:.4g}  (-{q[1, i] - q[0, i]:.3g} / +{q[2, i] - q[1, i]:.3g})')
+
+    np.savez('ns_trajectory.npz',
+             x=traj_x, y=traj_y, z=traj_z, v_los=traj_v,
+             params=q,
+    )
+    print('Trajectory data saved to ns_trajectory.npz')
