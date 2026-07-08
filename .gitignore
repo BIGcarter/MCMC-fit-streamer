@@ -9,6 +9,7 @@
 
 .DS_Store
 .claude/
+.worktrees/
 __pycache__/
 
 ./channel-peak.ipynb
