@@ -12,7 +12,7 @@ import corner
 mpl.rcParams['font.family'] = 'serif'
 
 
-BACKEND_FILE = 'ns_checkpoint_no_pressure_north.h5' # 'mcmc_chain_blue.h5'
+BACKEND_FILE = 'mcmc_chain_red_bk.h5' # 'mcmc_chain_blue.h5'
 DISCARD = 0          # burn-in steps (0 = auto: first 1/3)
 THIN = 1             # thinning factor (1 = auto: target ~3000 samples)
 
@@ -61,13 +61,13 @@ PARAM_LABELS = [
     r'$\phi_\mathrm{axis}$ [$^\circ$]',
 ]
 
-PRIOR_RANGES = [
-    (-100, 1500),
-    (-10, 1),
-    (-6, -3),
-    (0, 90),
-    (0, 180),
-]
+# PRIOR_RANGES = [
+#     (-100, 1500),
+#     (-10, 1),
+#     (-6, -3),
+#     (0, 90),
+#     (0, 180),
+# ]
 
 
 

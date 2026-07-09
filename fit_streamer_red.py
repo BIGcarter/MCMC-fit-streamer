@@ -26,7 +26,7 @@ PARAM_CONFIG = {
     'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'theta_axis [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'phi_axis [deg]'},
     'M':           {'is_constant': True,  'prior_range': None,           'init': 10.0,  'label': 'M [M_sun]'},
-    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 1e7, 'label': 'alpha'},
+    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500, 'label': 'alpha'},
     'x':           {'is_constant': True,  'prior_range': None,           'init': -440.0,'label': 'x [AU]'},
     'y':           {'is_constant': True,  'prior_range': None,           'init': -1000.0,'label': 'y [AU]'},
 }
@@ -95,8 +95,8 @@ def compute_trajectory(params):
     # 初始总能量检查（仅保留束缚轨道）
     r0 = np.sqrt(x0**2 + y0**2 + z0**2)
     E0 = 0.5 * (vx0**2 + vy0**2 + vz0**2) - GM / r0
-    if E0 >= 0:
-        return None, None, None, None
+    # if E0 >= 0:
+    #     return None, None, None, None
 
     try:
         sol = integrate_trajectory(
@@ -500,15 +500,15 @@ if __name__ == '__main__':
     # print()
 
     sampler, flat_samples = run_mcmc(x_data, y_data, v_data, f_data,
-                                     n_walkers=64, n_burnin=10000, n_production=300000,
+                                     n_walkers=64, n_burnin=50000, n_production=500000,
                                      n_workers=10,
-                                     backend_filename='mcmc_chain_south.h5',
+                                     backend_filename='mcmc_chain_with_pressure_south.h5',
                                      thin_by=50)
 
-    np.savez('mcmc_samples_red.npz',
+    np.savez('mcmc_samples_with_pressure_south.npz',
              flat_samples=flat_samples,
              log_prob=sampler.get_log_prob(thin=50),
              acceptance_fraction=sampler.acceptance_fraction,
     )
 
-    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True,save_prefix="mcmc_no_pressure_south")
+    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True,save_prefix="mcmc_with_pressure_south")

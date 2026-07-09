@@ -23,7 +23,8 @@ mpl.rcParams['font.family'] = 'serif'
 
 # NS
 FILE_1 = 'angular_momentum_ns_no_pressure_north.npz'
-FILE_2 = 'angular_momentum_ns_no_pressure_south.npz'
+# FILE_2 = 'angular_momentum_ns_no_pressure_south.npz'
+FILE_2 = "angular_momentum_south_samples.npz"
 
 LABEL_1 = 'North'
 LABEL_2 = 'South'
@@ -64,14 +65,14 @@ RESCALE_HIST = True     # independently scale 1D KDE heights
 
 # NS
 HIST_SCALE = [
-    (0.08, 0.4, 1),   # |j|
-    (0.05, 0.08, 1),   # θ_j
-    (0.08, 0.18, 1.0),   # φ_j
+    (0.11, 7, 1),   # |j|
+    (0.16, 6.5, 1),   # θ_j
+    (0.13, 8, 1),   # φ_j
 ]
 
 PLOT_NET = True  # if True, compute & overplot j_blue + j_red via independent draws
 
-PLOT_RANGE = None
+# PLOT_RANGE = None
 ## No Net
 # PLOT_RANGE = [
 #             (2000,11000),
@@ -79,19 +80,21 @@ PLOT_RANGE = None
 #             (90,170)
 # ]
 
-## With Net
-# if PLOT_NET:
-#     PLOT_RANGE = [
-#                 (2000,16000),
-#                 (56,86),
-#                 (90,170)
-#     ]
-# else:
-#     PLOT_RANGE = [
-#             (2000,11000),
-#             (56,86),
-#             (90,170)
-# ]
+# With Net
+if PLOT_NET:
+    PLOT_RANGE = [
+                (0,13000),
+                (50,100),
+                (100,118)
+    ]
+else:
+    PLOT_RANGE = [
+            (2000,11000),
+            (56,86),
+            (90,170)
+]
+
+# PLOT_RANGE = None
 
 
 # ============================================================
@@ -330,7 +333,7 @@ if PLOT_NET:
              bbox=dict(boxstyle='round', facecolor='white', alpha=0.85, edgecolor=COLOR_NET))
 
 
-OUTPUT = 'angular_momentum_comparison_ns.png'
+OUTPUT = 'angular_momentum_comparison_blue_ns_red_mcmc.png'
 
 fig.savefig(OUTPUT, dpi=DPI, bbox_inches='tight')
 print(f'\nComparison plot saved to {OUTPUT}')

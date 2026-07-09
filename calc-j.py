@@ -25,19 +25,19 @@ mpl.rcParams['font.family'] = 'serif'
 # Configuration
 # ============================================================
 
-CHAIN_FILE = 'mcmc_chain_blue.h5'  # 'mcmc_chain_blue.h5'
+CHAIN_FILE = 'mcmc_chain_red_bk.h5'  # 'mcmc_chain_blue.h5'
 DISCARD = 0            # burn-in steps (0 = auto: first 1/3)
 THIN = 1               # thinning factor (1 = auto: target ~3000 samples)
 
 SMOOTH_1D = True
 SHOW_BEST_FIT = True
 BINS = 30
-COLOR = 'steelblue'  # north: steelblue  red: lightsalmon
+COLOR = 'lightsalmon'  # north: steelblue  red: lightsalmon
 TITLE_FONT_SIZE = 11
 LABEL_FONT_SIZE = 15
 DPI = 150
 
-OUTPUT_PREFIX = 'angular_momentum_blue'
+OUTPUT_PREFIX = 'angular_momentum_south'
 
 # Constants matching fit_streamer.py PARAM_CONFIG defaults
 X_FIXED = -440.0    # -500 north
@@ -47,18 +47,18 @@ M_STAR = 10.0       # not used for j (purely kinematic), kept for reference
 # Free parameter names (order must match the chain columns)
 FREE_NAMES = ['z', 'v_r', 'log_omega', 'theta_axis', 'phi_axis']
 
-PLOT_RANGE = [
-    (2000,9000),
-    (65,85),
-    (100,170)
-]
+# PLOT_RANGE = [
+#     (2000,9000),
+#     (65,85),
+#     (100,170)
+# ]
 
 ## RED
-# PLOT_RANGE = [
-#     (7200, 10000),
-#     (57, 64),
-#     (100, 109),
-# ]
+PLOT_RANGE = [
+    (7200, 10000),
+    (57, 64),
+    (100, 109),
+]
 
 # ============================================================
 # Load chain
@@ -149,7 +149,8 @@ bf_x0, bf_y0, bf_z0, bf_vx0, bf_vy0, bf_vz0 = get_streamer_initial_state('mendoz
 bf_j_vec = np.cross([bf_x0, bf_y0, bf_z0], [bf_vx0, bf_vy0, bf_vz0])
 bf_j_mag = np.linalg.norm(bf_j_vec)
 _, bf_theta_j, bf_phi_j = cartesian_to_spherical(bf_j_vec[0], bf_j_vec[1], bf_j_vec[2])
-bf_j = np.array([bf_j_mag, bf_theta_j, bf_phi_j])
+# bf_j = np.array([bf_j_mag, bf_theta_j, bf_phi_j])
+bf_j = q[1]
 
 print('\nSpecific angular momentum (max log_prob sample):')
 for name, val in [('|j| [AU·km/s]', bf_j[0]),

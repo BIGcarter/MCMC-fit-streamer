@@ -8,14 +8,10 @@ import dynesty
 from dynesty import DynamicNestedSampler
 from dynesty import plotting as dyplot
 from dynesty.utils import resample_equal
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from matplotlib.colors import Normalize
-from matplotlib.cm import RdBu_r
 
-from streamer_ic import (get_streamer_initial_state, cartesian_to_spherical,
-                         get_axis_unit_vector, build_local_frame)
+from streamer_ic import get_streamer_initial_state, cartesian_to_spherical
 from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere, azimuth_cutoff_idx
+from visual_orbit import plot_orbit
 
 # ============================================================
 # Configuration
@@ -28,12 +24,12 @@ PARAM_CONFIG = {
     'theta_axis':  {'is_constant': False, 'prior_range': [10, 170],         'label': r'$\theta_{axis}$ [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [10, 350],        'label': r'$\phi_{axis}$ [deg]'},
     'M':           {'is_constant': True,  'value': 10.0,                  'label': r'$M$ [$M_\odot$]'},
-    'alpha':       {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
+    'alpha':       {'is_constant': True,  'value': 500,                 'label': r'$\alpha$'},
     'x':           {'is_constant': True,  'value': -440.0,                'label': r'$x$ [AU]'},
     'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -500, 1300
 }
 
-NLIVE_INIT = 5000
+NLIVE_INIT = 50000
 N_CPUS = 10
 
 T_SPAN = (0, 3000)
@@ -42,7 +38,7 @@ STOPPING_R = 150.0
 AZIMUTH_MAX_DELTA_DEG = 200.0
 
 OBS_DATA = '../red-ppvf.npz'
-SAVE_SUFFIX = '_no_pressure_south'
+SAVE_SUFFIX = '_with_pressure_south'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 
@@ -122,7 +118,6 @@ def compute_trajectory(params):
     GM = gm_from_mstar(M_val)
     drag_func = linear_drag(alpha=alpha_val)
 
-    # 初始总能量检查（仅保留束缚轨道）
     r0 = np.sqrt(x0**2 + y0**2 + z0**2)
     E0 = 0.5 * (vx0**2 + vy0**2 + vz0**2) - GM / r0
     if E0 >= 0:
@@ -343,149 +338,16 @@ if __name__ == '__main__':
     print(f'Posterior trajectories: {len(multi_trajs)}/{min(N_LINES, len(equal_samples))} computed')
 
     # --- PPP + PPV Plotly figure ---
-    v_range = [-6, 6]
-    v_norm = Normalize(vmin=v_range[0], vmax=v_range[1])
-
-    def _to_rgb(arr):
-        rgba = RdBu_r(v_norm(arr))
-        return ['rgb({:.0f},{:.0f},{:.0f})'.format(c[0]*255, c[1]*255, c[2]*255)
-                for c in rgba]
-
-    traj_colors = _to_rgb(traj_v)
-    data_colors = _to_rgb(_data_v)
-
-    fig = make_subplots(
-        rows=1, cols=2,
-        specs=[[{'type': 'scene'}, {'type': 'scene'}]],
-        subplot_titles=('PPP (best fit)', 'PPV (best fit)'),
-        horizontal_spacing=0.08,
+    plot_orbit(
+        traj_x, traj_y, traj_z, traj_v,
+        _data_x, _data_y, _data_v,
+        params_bf['x'], params_bf['y'], params_bf['z'],
+        params_bf['theta_axis'], params_bf['phi_axis'],
+        multi_trajs=multi_trajs,
+        sigma_xy=SIGMA_XY, sigma_v=SIGMA_V,
+        v_range=(-6, 6),
+        output_html=f'ns_bestfit{SAVE_SUFFIX}.html',
     )
-
-    # PPP: posterior samples
-    for tx, ty, tz, tv in multi_trajs:
-        fig.add_trace(go.Scatter3d(
-            x=tx, y=ty, z=tz, mode='lines',
-            line=dict(color='gray', width=0.5), opacity=0.5, showlegend=False,
-        ), row=1, col=1)
-
-    fig.add_trace(go.Scatter3d(
-        x=traj_x, y=traj_y, z=traj_z, mode='lines+markers',
-        marker=dict(size=3, color=traj_colors, opacity=0.8),
-        line=dict(color='gray', width=2), showlegend=False,
-    ), row=1, col=1)
-
-    fig.add_trace(go.Scatter3d(
-        x=[0], y=[0], z=[0], mode='markers',
-        marker=dict(size=8, color='black', symbol='diamond'), showlegend=False,
-    ), row=1, col=1)
-
-    # --- Z=0 reference plane ---
-    all_x = np.concatenate([traj_x, _data_x])
-    all_y = np.concatenate([traj_y, _data_y])
-    px_min, px_max = all_x.min(), all_x.max()
-    py_min, py_max = all_y.min(), all_y.max()
-    px = np.array([px_min, px_max, px_max, px_min])
-    py = np.array([py_min, py_min, py_max, py_max])
-    pz = np.zeros(4)
-    tri_i_xy = [0, 0]; tri_j_xy = [1, 3]; tri_k_xy = [2, 2]
-    fig.add_trace(go.Mesh3d(
-        x=px, y=py, z=pz,
-        i=tri_i_xy, j=tri_j_xy, k=tri_k_xy,
-        color='gray', opacity=0.15, showlegend=False, name='Z=0',
-    ), row=1, col=1)
-
-    # Rotation axis + equatorial plane
-    r0_bf, _, _ = cartesian_to_spherical(params_bf['x'], params_bf['y'], params_bf['z'])
-    n_axis = get_axis_unit_vector(params_bf['theta_axis'], params_bf['phi_axis'])
-    R_plane = build_local_frame(n_axis)
-    plane_r = 0.5 * r0_bf
-    n_ring = 80
-    theta_ring = np.linspace(0, 2 * np.pi, n_ring)
-    ring_local = np.column_stack([
-        plane_r * np.cos(theta_ring),
-        plane_r * np.sin(theta_ring),
-        np.zeros(n_ring),
-    ])
-    ring_global = (R_plane @ ring_local.T).T
-
-    tri_i, tri_j, tri_k = [], [], []
-    for i in range(n_ring - 1):
-        tri_i.append(0); tri_j.append(i + 1); tri_k.append(i + 2)
-    tri_i.append(0); tri_j.append(n_ring); tri_k.append(1)
-
-    disc_vertices = np.vstack([[0, 0, 0], ring_global])
-    fig.add_trace(go.Mesh3d(
-        x=disc_vertices[:, 0], y=disc_vertices[:, 1], z=disc_vertices[:, 2],
-        i=tri_i, j=tri_j, k=tri_k,
-        color='lightblue', opacity=0.25, showlegend=False,
-    ), row=1, col=1)
-
-    axis_len = 0.3 * r0_bf
-    axis_tip = n_axis * axis_len
-    fig.add_trace(go.Scatter3d(
-        x=[0, axis_tip[0]], y=[0, axis_tip[1]], z=[0, axis_tip[2]],
-        mode='lines', line=dict(color='green', width=4), showlegend=False,
-    ), row=1, col=1)
-    fig.add_trace(go.Cone(
-        x=[axis_tip[0]], y=[axis_tip[1]], z=[axis_tip[2]],
-        u=[n_axis[0]], v=[n_axis[1]], w=[n_axis[2]],
-        sizemode='absolute', sizeref=axis_len * 0.15,
-        colorscale=[[0, 'green'], [1, 'green']],
-        showscale=False, anchor='tip',
-    ), row=1, col=1)
-
-    # PPV: posterior samples
-    for tx, ty, tz, tv in multi_trajs:
-        fig.add_trace(go.Scatter3d(
-            x=tx, y=ty, z=tv, mode='lines',
-            line=dict(color='gray', width=0.5), opacity=0.5, showlegend=False,
-        ), row=1, col=2)
-
-    fig.add_trace(go.Scatter3d(
-        x=traj_x, y=traj_y, z=traj_v, mode='lines+markers',
-        marker=dict(size=3, color=traj_colors, opacity=0.8),
-        line=dict(color='gray', width=2), showlegend=False,
-    ), row=1, col=2)
-
-    fig.add_trace(go.Scatter3d(
-        x=_data_x, y=_data_y, z=_data_v, mode='markers',
-        marker=dict(size=5, color=data_colors, symbol='circle'),
-        error_x=dict(type='data', array=np.full_like(_data_x, SIGMA_XY),
-                     visible=True, color='gray', width=2),
-        error_y=dict(type='data', array=np.full_like(_data_y, SIGMA_XY),
-                     visible=True, color='gray', width=2),
-        error_z=dict(type='data', array=np.full_like(_data_v, SIGMA_V),
-                     visible=True, color='gray', width=2),
-        showlegend=False,
-    ), row=1, col=2)
-
-    # Layout
-    all_x = np.concatenate([traj_x, _data_x])
-    all_y = np.concatenate([traj_y, _data_y])
-    x_range = all_x.max() - all_x.min()
-    y_range = all_y.max() - all_y.min()
-    max_spatial_range = max(x_range, y_range)
-    x_scale = x_range / max_spatial_range if max_spatial_range > 0 else 1.0
-    y_scale = y_range / max_spatial_range if max_spatial_range > 0 else 1.0
-
-    camera = dict(
-        up=dict(x=0, y=1, z=0),
-        center=dict(x=0, y=0, z=0),
-        eye=dict(x=0, y=0, z=-2.5),
-    )
-    fig.update_layout(
-        template='plotly_white', showlegend=False,
-        scene1=dict(xaxis=dict(title='X', autorange='reversed'), yaxis=dict(title='Y'),
-                     zaxis=dict(title='Z'), aspectmode='data'),
-        scene2=dict(
-            xaxis=dict(title='X'), yaxis=dict(title='Y'),
-            zaxis=dict(title='V_los', range=[-20, 20]),
-            aspectmode='manual',
-            aspectratio=dict(x=x_scale, y=y_scale, z=2),
-        ),
-        scene_camera=camera,
-    )
-    fig.write_html(f'ns_bestfit{SAVE_SUFFIX}.html')
     # print('Best-fit trajectory saved to ns_bestfit.html')
 
     # --- Summary percentiles ---
