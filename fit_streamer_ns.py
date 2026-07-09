@@ -22,15 +22,15 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [0, 1500],       'label': r'$z$ [AU]'},
+    'z':           {'is_constant': False, 'prior_range': [-1500, 200],       'label': r'$z$ [AU]'},  # 0, 1500 north
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],        'label': r'$v_r$ [km/s]'},
     'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega)$ [round/yr]'},
-    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],         'label': r'$\theta_{axis}$ [deg]'},
-    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],        'label': r'$\phi_{axis}$ [deg]'},
-    'M':           {'is_constant': True,  'value': 15.0,                  'label': r'$M$ [$M_\odot$]'},
-    'alpha':       {'is_constant': True,  'value': 500.0,                 'label': r'$\alpha$'},
-    'x':           {'is_constant': True,  'value': -500.0,                'label': r'$x$ [AU]'},
-    'y':           {'is_constant': True,  'value': 1200.0,                'label': r'$y$ [AU]'},
+    'theta_axis':  {'is_constant': False, 'prior_range': [10, 170],         'label': r'$\theta_{axis}$ [deg]'},
+    'phi_axis':    {'is_constant': False, 'prior_range': [10, 350],        'label': r'$\phi_{axis}$ [deg]'},
+    'M':           {'is_constant': True,  'value': 10.0,                  'label': r'$M$ [$M_\odot$]'},
+    'alpha':       {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
+    'x':           {'is_constant': True,  'value': -440.0,                'label': r'$x$ [AU]'},
+    'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -500, 1300
 }
 
 NLIVE_INIT = 5000
@@ -39,7 +39,10 @@ N_CPUS = 10
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
 STOPPING_R = 150.0
-AZIMUTH_MAX_DELTA_DEG = 180.0
+AZIMUTH_MAX_DELTA_DEG = 200.0
+
+OBS_DATA = '../red-ppvf.npz'
+SAVE_SUFFIX = '_no_pressure_south'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 
@@ -68,7 +71,7 @@ print(f'Constants: {list(_constant_values.keys())}')
 # Static data & KDTree (built once)
 # ============================================================
 
-_data = np.load('../blue-ppvf.npz')
+_data = np.load(OBS_DATA)
 _data_x = _data['x']
 _data_y = _data['y']
 _data_v = _data['v']
@@ -118,6 +121,12 @@ def compute_trajectory(params):
     alpha_val = params.get('alpha', _constant_values.get('alpha'))
     GM = gm_from_mstar(M_val)
     drag_func = linear_drag(alpha=alpha_val)
+
+    # 初始总能量检查（仅保留束缚轨道）
+    r0 = np.sqrt(x0**2 + y0**2 + z0**2)
+    E0 = 0.5 * (vx0**2 + vy0**2 + vz0**2) - GM / r0
+    if E0 >= 0:
+        return None, None, None, None
 
     try:
         sol = integrate_trajectory(initial_state, T_SPAN, T_EVAL, GM, drag_func, events=stopping_sphere(STOPPING_R))
@@ -225,8 +234,8 @@ if __name__ == '__main__':
 
     sampler.run_nested(
         dlogz_init=0.02,
-        nlive_batch=1000,
-        checkpoint_file='ns_checkpoint.h5',
+        nlive_batch=5000,
+        checkpoint_file=f'ns_checkpoint{SAVE_SUFFIX}.h5',
         )
     print('Done. Wake up.')
 
@@ -249,7 +258,7 @@ if __name__ == '__main__':
 
     print(f'Equal-weight posterior samples: {equal_samples.shape[0]}')
 
-    np.savez('ns_samples_blue.npz',
+    np.savez(f'ns_samples{SAVE_SUFFIX}.npz',
              samples=samples,
              equal_samples=equal_samples,
              logvol=logvol,
@@ -265,22 +274,22 @@ if __name__ == '__main__':
 
     # --- Summary plot (logZ, dlogZ, nlive vs ncall) ---
     fig_summary, axes_summary = dyplot.runplot(results)
-    fig_summary.savefig('ns_summary.png', dpi=150)
-    print('Summary plot saved to ns_summary.png')
+    fig_summary.savefig(f'ns_summary{SAVE_SUFFIX}.png', dpi=150)
+    # print('Summary plot saved to ns_summary.png')
 
     # --- Trace plots ---
     param_labels = _param_labels
     fig_trace, axes_trace = dyplot.traceplot(results_viz, labels=param_labels)
-    fig_trace.savefig('ns_trace.png', dpi=150)
-    print('Trace plots saved to ns_trace.png')
+    fig_trace.savefig(f'ns_trace{SAVE_SUFFIX}.png', dpi=150)
+    # print('Trace plots saved to ns_trace.png')
 
     # --- Corner plot ---
     fig_corner, axes_corner = dyplot.cornerplot(results_viz, labels=param_labels,
                                                  quantiles=[0.16, 0.5, 0.84],
                                                  show_titles=True,
                                                  title_kwargs={'fontsize': 10})
-    fig_corner.savefig('ns_corner.png', dpi=150)
-    print('Corner plot saved to ns_corner.png')
+    fig_corner.savefig(f'ns_corner{SAVE_SUFFIX}.png', dpi=150)
+    # print('Corner plot saved to ns_corner.png')
 
     # --- Bounding distribution plot (pairwise grid) ---
     # try:
@@ -304,14 +313,11 @@ if __name__ == '__main__':
     # except Exception:
     #     print("bound plot errors.")
 
-    # --- Best-fit trajectory ---
-    best_idx = np.argmax(logl)
-    best_theta = samples[best_idx]
-    best_logl = logl[best_idx]
-
+    # --- Best-fit: posterior median (more robust than max-likelihood) ---
+    best_theta = np.median(equal_samples, axis=0)
     params_bf = _theta_to_params(best_theta)
 
-    print(f'\nBest-fit params (lnL = {best_logl:.2f}):')
+    print(f'\nBest-fit params (posterior median):')
     for name in _free_names:
         print(f'  {name} = {params_bf[name]:.4g}')
     print(f'  lnZ = {logz:.3f} +/- {logzerr:.3f}')
@@ -479,8 +485,8 @@ if __name__ == '__main__':
         ),
         scene_camera=camera,
     )
-    fig.write_html('ns_bestfit.html')
-    print('Best-fit trajectory saved to ns_bestfit.html')
+    fig.write_html(f'ns_bestfit{SAVE_SUFFIX}.html')
+    # print('Best-fit trajectory saved to ns_bestfit.html')
 
     # --- Summary percentiles ---
     q = np.percentile(equal_samples, [16, 50, 84], axis=0)
@@ -488,8 +494,8 @@ if __name__ == '__main__':
     for i, name in enumerate(_free_names):
         print(f'  {name}: {q[1, i]:.4g}  (-{q[1, i] - q[0, i]:.3g} / +{q[2, i] - q[1, i]:.3g})')
 
-    np.savez('ns_trajectory.npz',
+    np.savez(f'ns_trajectory{SAVE_SUFFIX}.npz',
              x=traj_x, y=traj_y, z=traj_z, v_los=traj_v,
              params=q,
     )
-    print('Trajectory data saved to ns_trajectory.npz')
+    print(f'Trajectory data saved to ns_trajectory{SAVE_SUFFIX}.npz')

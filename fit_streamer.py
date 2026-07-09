@@ -20,15 +20,15 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [-50, 1500],     'init': 200,   'label': 'z [AU]'},
+    'z':           {'is_constant': False, 'prior_range': [0, 1500],     'init': 200,   'label': 'z [AU]'},
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],       'init': -2,    'label': 'v_r [km/s]'},
     'log_omega':   {'is_constant': False, 'prior_range': [-6, -3],       'init': -4.3,  'label': 'log10(omega) [round/yr]'},
     'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'theta_axis [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'phi_axis [deg]'},
-    'M':           {'is_constant': False,  'prior_range': [5, 20],        'init': 10.0,  'label': 'M [M_sun]'},
-    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500, 'label': 'α'},
-    'x':           {'is_constant': True,  'prior_range': None,           'init': -440.0,'label': 'x [AU]'},
-    'y':           {'is_constant': True,  'prior_range': None,           'init': 1200.0,'label': 'y [AU]'},
+    'M':           {'is_constant': True,  'prior_range': None,        'init': 10.0,  'label': 'M [M_sun]'},
+    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 1e7, 'label': 'α'},
+    'x':           {'is_constant': True,  'prior_range': None,           'init': -500.0,'label': 'x [AU]'},
+    'y':           {'is_constant': True,  'prior_range': None,           'init': 1300.0,'label': 'y [AU]'},
 }
 
 # --- Parse PARAM_CONFIG into free / constant ---
@@ -52,7 +52,7 @@ _init_defaults = np.array(_init_defaults)
 _param_labels = [PARAM_CONFIG[n]['label'] for n in _free_names]
 
 # --- Remaining fixed config ---
-STOPPING_R = 100.0
+STOPPING_R = 150.0
 AZIMUTH_MAX_DELTA_DEG = 200.0
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
@@ -496,18 +496,18 @@ if __name__ == '__main__':
     # print(f'  sigma_xy = {SIGMA_XY} AU, sigma_v = {SIGMA_V} km/s')
     # print()
 
-    prefix = 'M_free_'
+    prefix = 'no_pressure_north'
     sampler, flat_samples = run_mcmc(x_data, y_data, v_data, f_data,
-                                     n_walkers=64, n_burnin=50000, n_production=800000,
+                                     n_walkers=64, n_burnin=10000, n_production=100000,
                                      n_workers=10,
                                      backend_filename=f'{prefix}mcmc_chain_blue.h5',
                                      thin_by=50)
 
-    np.savez(f'{prefix}mcmc_samples_blue.npz',
+    np.savez(f'mcmc_samples_{prefix}.npz',
              flat_samples=flat_samples,
              log_prob=sampler.get_log_prob(thin=50),
              acceptance_fraction=sampler.acceptance_fraction,
     )
 
     plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data,
-                 multiple_lines=True, save_prefix=f'north_streamer_alpha=500_{prefix}')
+                 multiple_lines=True, save_prefix=f'mcmc_result_{prefix}')

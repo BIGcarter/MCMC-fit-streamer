@@ -20,13 +20,13 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [-1000, 0],     'init': -200,  'label': 'z [AU]'},
+    'z':           {'is_constant': False, 'prior_range': [-1500, 200],     'init': -200,  'label': 'z [AU]'},
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],       'init': -2,    'label': 'v_r [km/s]'},
     'log_omega':   {'is_constant': False, 'prior_range': [-6, -3],       'init': -4.3,  'label': 'log10(omega) [round/yr]'},
     'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'theta_axis [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'phi_axis [deg]'},
-    'M':           {'is_constant': True,  'prior_range': None,           'init': 15.0,  'label': 'M [M_sun]'},
-    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500.0, 'label': 'alpha'},
+    'M':           {'is_constant': True,  'prior_range': None,           'init': 10.0,  'label': 'M [M_sun]'},
+    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 1e7, 'label': 'alpha'},
     'x':           {'is_constant': True,  'prior_range': None,           'init': -440.0,'label': 'x [AU]'},
     'y':           {'is_constant': True,  'prior_range': None,           'init': -1000.0,'label': 'y [AU]'},
 }
@@ -91,6 +91,12 @@ def compute_trajectory(params):
     alpha_val = params.get('alpha', _constant_values.get('alpha'))
     GM = gm_from_mstar(M_val)
     drag_func = linear_drag(alpha=alpha_val)
+
+    # 初始总能量检查（仅保留束缚轨道）
+    r0 = np.sqrt(x0**2 + y0**2 + z0**2)
+    E0 = 0.5 * (vx0**2 + vy0**2 + vz0**2) - GM / r0
+    if E0 >= 0:
+        return None, None, None, None
 
     try:
         sol = integrate_trajectory(
@@ -494,9 +500,9 @@ if __name__ == '__main__':
     # print()
 
     sampler, flat_samples = run_mcmc(x_data, y_data, v_data, f_data,
-                                     n_walkers=64, n_burnin=10000, n_production=200000,
+                                     n_walkers=64, n_burnin=10000, n_production=300000,
                                      n_workers=10,
-                                     backend_filename='mcmc_chain_red.h5',
+                                     backend_filename='mcmc_chain_south.h5',
                                      thin_by=50)
 
     np.savez('mcmc_samples_red.npz',
@@ -505,4 +511,4 @@ if __name__ == '__main__':
              acceptance_fraction=sampler.acceptance_fraction,
     )
 
-    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True)
+    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True,save_prefix="mcmc_no_pressure_south")
