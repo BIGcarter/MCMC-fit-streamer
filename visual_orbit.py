@@ -294,24 +294,24 @@ def plot_orbit(
 
 if __name__ == '__main__':
     # --- Model parameters (edit these) ---
-    X = -500.0            # starting position [AU] 
-    Y = 1300.0           # -440, -1000
-    Z = 1127             # -804
-    V_R = -0.44        # radial infall velocity [km/s]
-    LOG10_OMEGA = -4.51  # log10(rotation rate [round/yr])
-    THETA_AXIS = 67.3  # rotation-axis zenith [deg]
-    PHI_AXIS = 89    # rotation-axis azimuth [deg]
+    X = -440            # starting position [AU] 
+    Y = -1000           # -440, -1000
+    Z = -816.4697             # -804
+    V_R = -3.8770        # radial infall velocity [km/s]
+    LOG10_OMEGA = -3.7940  # log10(rotation rate [round/yr])
+    THETA_AXIS = 43.7356  # rotation-axis zenith [deg]
+    PHI_AXIS = 90.6275    # rotation-axis azimuth [deg]
     M_STAR = 10.0         # central mass [M_sun]
-    ALPHA = 1e7         # linear-drag coefficient
+    ALPHA = 500         # linear-drag coefficient
     T_SPAN = (0, 3000)    # integration time span [yr]
     N_EVAL = 1200
     STOPPING_R = 150.0    # stop when r crosses this [AU]
     AZIMUTH_MAX_DELTA_DEG = 230.0
 
     # --- Observation data ---
-    OBS_NPZ = '../blue-ppvf.npz'
-    OUTPUT_HTML = 'orbit_view_north.html'
-    OUTPUT_NPZ = 'orbit_view_north.npz'   # saved model trajectory (x, y, z, v_los)
+    OBS_NPZ = '../red-ppvf.npz'
+    OUTPUT_HTML = 'orbit_view_south_cluster2.html'
+    OUTPUT_NPZ = 'orbit_view_south_cluster2.npz'   # saved model trajectory (x, y, z, v_los)
 
     # --- Plot config ---
     SIGMA_XY = 60.0

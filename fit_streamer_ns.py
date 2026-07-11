@@ -18,18 +18,19 @@ from visual_orbit import plot_orbit
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [-1500, 200],       'label': r'$z$ [AU]'},  # 0, 1500 north
+    'z':           {'is_constant': False, 'prior_range': [-1500, 100],       'label': r'$z$ [AU]'},  # 0, 1500 north
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],        'label': r'$v_r$ [km/s]'},
     'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega)$ [round/yr]'},
-    'theta_axis':  {'is_constant': False, 'prior_range': [10, 170],         'label': r'$\theta_{axis}$ [deg]'},
-    'phi_axis':    {'is_constant': False, 'prior_range': [10, 350],        'label': r'$\phi_{axis}$ [deg]'},
-    'M':           {'is_constant': True,  'value': 10.0,                  'label': r'$M$ [$M_\odot$]'},
-    'alpha':       {'is_constant': True,  'value': 500,                 'label': r'$\alpha$'},
+    'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],         'label': r'$\theta_{axis}$ [deg]'},
+    'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],        'label': r'$\phi_{axis}$ [deg]'},
+    'M':           {'is_constant': False,  'prior_range': [5,20],                  'label': r'$M$ [$M_\odot$]'},
+    # 'alpha':       {'is_constant': True,  'value': 500,                 'label': r'$\alpha$'},
+    'alpha':       {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
     'x':           {'is_constant': True,  'value': -440.0,                'label': r'$x$ [AU]'},
-    'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -500, 1300
+    'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -500, 1200 south -440 -1000
 }
 
-NLIVE_INIT = 50000
+NLIVE_INIT = 10000
 N_CPUS = 10
 
 T_SPAN = (0, 3000)
@@ -38,7 +39,7 @@ STOPPING_R = 150.0
 AZIMUTH_MAX_DELTA_DEG = 200.0
 
 OBS_DATA = '../red-ppvf.npz'
-SAVE_SUFFIX = '_with_pressure_south'
+SAVE_SUFFIX = '_free_M_south'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 

@@ -25,8 +25,9 @@ mpl.rcParams['font.family'] = 'serif'
 # ============================================================
 
 # SAMPLES_FILE = 'ns_samples_no_pressure_north.npz'
-SAMPLES_FILE = 'ns_samples_no_pressure_south.npz'
-SAVE_SUFFIX = '_no_pressure_south'
+# SAMPLES_FILE = 'ns_samples_no_pressure_south.npz'
+SAMPLES_FILE = 'ns_samples_with_pressure_north.npz'
+SAVE_SUFFIX = '_with_pressure_north'
 
 N_SUBSAMPLE = 0           # 0 = use all; >0 = random subsample (for speed)
 
@@ -50,7 +51,7 @@ M_STAR = 10.0              # not used for j (purely kinematic)
 # Note: omega is LINEAR (round/yr), unlike MCMC version which uses log_omega
 FREE_NAMES = ['z', 'v_r', 'omega', 'theta_axis', 'phi_axis']
 
-# PLOT_RANGE = None           # None = auto; or list of [(lo,hi), ...]
+PLOT_RANGE = None           # None = auto;
 
 ## North
 # PLOT_RANGE = [
@@ -60,11 +61,11 @@ FREE_NAMES = ['z', 'v_r', 'omega', 'theta_axis', 'phi_axis']
 # ]
 
 ## South
-PLOT_RANGE = [
-    (0,3000),
-    (30,75),
-    (-40,100)
-]
+# PLOT_RANGE = [
+#     (0,3000),
+#     (30,75),
+#     (-40,100)
+# ]
 
 
 # ============================================================
