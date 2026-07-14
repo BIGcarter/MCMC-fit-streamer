@@ -1,13 +1,18 @@
 import numpy as np
 from sklearn.mixture import GaussianMixture
 import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
+import matplotlib.cm as cm
 from matplotlib.colors import to_rgba
+
+# ============================================================
+# Config
+# ============================================================
+N_CLUSTERS = 3  # number of GMM components
 
 # ============================================================
 # Load data
 # ============================================================
-data = np.load('mcmc_samples_with_pressure_south.npz')
+data = np.load('mcmc_samples_no_pressure_south.npz')
 samples = data['flat_samples']  # (n_steps, 5)
 print(f'Loaded {samples.shape[0]} samples, {samples.shape[1]} parameters')
 
@@ -28,26 +33,36 @@ idx_thin = rng.choice(samples.shape[0], size=n_thin, replace=False)
 samples_thin = samples[idx_thin]
 
 # ============================================================
-# GMM clustering (2 components)
+# GMM clustering
 # ============================================================
-print('Running GMM with 3 components...')
-gmm = GaussianMixture(n_components=2, random_state=42, n_init=10)
+print(f'Running GMM with {N_CLUSTERS} components...')
+gmm = GaussianMixture(n_components=N_CLUSTERS, random_state=42, n_init=10)
 labels_thin = gmm.fit_predict(samples_thin)
 
 # Assign full sample labels via nearest GMM component
 probs_full = gmm.predict_proba(samples)
 labels_full = np.argmax(probs_full, axis=1)
 
-cluster0 = samples[labels_full == 0]
-cluster1 = samples[labels_full == 1]
+clusters = []
+for k in range(N_CLUSTERS):
+    clusters.append(samples[labels_full == k])
 
-# Ensure cluster0 is the larger one (arbitrary but consistent labeling)
-if len(cluster0) < len(cluster1):
-    cluster0, cluster1 = cluster1, cluster0
-    labels_full = 1 - labels_full
+# Sort clusters by size descending
+order = np.argsort([-len(c) for c in clusters])
+clusters = [clusters[i] for i in order]
+# Re-label so largest is cluster 0, etc.
+old_to_new = {old: new for new, old in enumerate(order)}
+labels_full = np.array([old_to_new[l] for l in labels_full])
 
-print(f'Cluster 0: {cluster0.shape[0]} samples ({100*cluster0.shape[0]/samples.shape[0]:.1f}%)')
-print(f'Cluster 1: {cluster1.shape[0]} samples ({100*cluster1.shape[0]/samples.shape[0]:.1f}%)')
+cluster_names = [f'Cluster {i}' for i in range(N_CLUSTERS)]
+for i, cl in enumerate(clusters):
+    print(f'{cluster_names[i]}: {cl.shape[0]} samples ({100 * cl.shape[0] / samples.shape[0]:.1f}%)')
+
+# ============================================================
+# Color palette
+# ============================================================
+cmap = cm.get_cmap('tab10')
+colors = [cmap(i % 10) for i in range(N_CLUSTERS)]
 
 # ============================================================
 # Corner plot with smoothed 2D histograms
@@ -55,19 +70,15 @@ print(f'Cluster 1: {cluster1.shape[0]} samples ({100*cluster1.shape[0]/samples.s
 n_params = samples.shape[1]
 fig, axes = plt.subplots(n_params, n_params, figsize=(12, 12))
 
-colors = ['#1f77b4', '#d62728']  # blue, red
-cluster_names = ['Cluster 0', 'Cluster 1']
-alpha_2d = 0.6
-
 for i in range(n_params):
     for j in range(n_params):
         ax = axes[i, j]
 
         if i == j:
             # --- Diagonal: 1D histogram (line, not filled) ---
-            for clr, label, cl in zip(colors, cluster_names, [cluster0, cluster1]):
+            for clr, name, cl in zip(colors, cluster_names, clusters):
                 ax.hist(cl[:, i], bins=40, histtype='step', color=clr,
-                        linewidth=1.5, density=True, label=label)
+                        linewidth=1.5, density=True, label=name)
             ax.set_xlim(samples[:, i].min(), samples[:, i].max())
             ax.set_yticks([])
             if i == 0:
@@ -79,13 +90,15 @@ for i in range(n_params):
 
         elif j < i:
             # --- Lower triangle: smoothed 2D density via hexbin ---
-            for clr, cl in zip(colors, [cluster0, cluster1]):
-                rgba = to_rgba(clr, alpha_2d)
-                hb = ax.hexbin(cl[:, j], cl[:, i], gridsize=30,
-                               cmap=plt.cm.Blues if clr == colors[0] else plt.cm.Reds,
-                               mincnt=1, bins='log', alpha=0.7,
-                               extent=[samples[:, j].min(), samples[:, j].max(),
-                                       samples[:, i].min(), samples[:, i].max()])
+            for clr, cl in zip(colors, clusters):
+                clr_rgb = to_rgba(clr)[:3]
+                cmap_cl = plt.cm.colors.LinearSegmentedColormap.from_list(
+                    '', [(1, 1, 1), clr_rgb])
+                ax.hexbin(cl[:, j], cl[:, i], gridsize=30,
+                          cmap=cmap_cl,
+                          mincnt=1, bins='log', alpha=0.7,
+                          extent=[samples[:, j].min(), samples[:, j].max(),
+                                  samples[:, i].min(), samples[:, i].max()])
             if j == 0:
                 ax.set_ylabel(param_labels[i], fontsize=8)
             else:
@@ -99,10 +112,10 @@ for i in range(n_params):
             # Upper triangle: hide
             ax.set_visible(False)
 
-fig.suptitle('MCMC Samples — GMM Clustering (2 components)', fontsize=13, y=0.98)
+fig.suptitle(f'MCMC Samples — GMM Clustering ({N_CLUSTERS} components)', fontsize=13, y=0.98)
 plt.tight_layout()
-fig.savefig('mcmc_clustered_corner.png', dpi=150, bbox_inches='tight')
-print('Saved mcmc_clustered_corner.png')
+fig.savefig('mcmc_clustered_nop_corner.png', dpi=150, bbox_inches='tight')
+print('Saved mcmc_clustered_nop_corner.png')
 plt.close(fig)
 
 # ============================================================
@@ -112,7 +125,7 @@ print('\n' + '=' * 70)
 print('Cluster Statistics (median, 16th, 84th percentiles)')
 print('=' * 70)
 
-for cl_name, cl in zip(cluster_names, [cluster0, cluster1]):
+for cl_name, cl in zip(cluster_names, clusters):
     q = np.percentile(cl, [16, 50, 84], axis=0)
     print(f'\n--- {cl_name} ({cl.shape[0]} samples) ---')
     for i, label in enumerate(param_labels):
@@ -122,9 +135,8 @@ for cl_name, cl in zip(cluster_names, [cluster0, cluster1]):
         print(f'  {label:>35s}: {val_50:12.4f}   (-{val_50 - val_16:.4f} / +{val_84 - val_50:.4f})')
 
 # Save cluster labels alongside samples
-np.savez('mcmc_samples_clustered.npz',
-         flat_samples=samples,
-         cluster_labels=labels_full,
-         cluster0=cluster0,
-         cluster1=cluster1)
-print('\nSaved mcmc_samples_clustered.npz')
+save_kwargs = dict(flat_samples=samples, cluster_labels=labels_full)
+for i, cl in enumerate(clusters):
+    save_kwargs[f'cluster{i}'] = cl
+np.savez('mcmc_samples_clustered_nop.npz', **save_kwargs)
+print('\nSaved mcmc_samples_clustered_nop.npz')

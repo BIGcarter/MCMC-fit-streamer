@@ -20,13 +20,13 @@ from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, sto
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [-1500, 200],     'init': -200,  'label': 'z [AU]'},
+    'z':           {'is_constant': False, 'prior_range': [-2000, 100],     'init': -400,  'label': 'z [AU]'},
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],       'init': -2,    'label': 'v_r [km/s]'},
     'log_omega':   {'is_constant': False, 'prior_range': [-6, -3],       'init': -4.3,  'label': 'log10(omega) [round/yr]'},
     'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],        'init': 45,    'label': 'theta_axis [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],       'init': 120,   'label': 'phi_axis [deg]'},
-    'M':           {'is_constant': True,  'prior_range': None,           'init': 10.0,  'label': 'M [M_sun]'},
-    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 500, 'label': 'alpha'},
+    'M':           {'is_constant': True,  'prior_range': None,           'init': 15.0,  'label': 'M [M_sun]'},
+    'alpha':       {'is_constant': True,  'prior_range': None,           'init': 1e6, 'label': 'alpha'},
     'x':           {'is_constant': True,  'prior_range': None,           'init': -440.0,'label': 'x [AU]'},
     'y':           {'is_constant': True,  'prior_range': None,           'init': -1000.0,'label': 'y [AU]'},
 }
@@ -52,8 +52,8 @@ _init_defaults = np.array(_init_defaults)
 _param_labels = [PARAM_CONFIG[n]['label'] for n in _free_names]
 
 # --- Remaining fixed config ---
-STOPPING_R = 100.0
-AZIMUTH_MAX_DELTA_DEG = 180.0
+STOPPING_R = 150.0
+AZIMUTH_MAX_DELTA_DEG = 200.0
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
 
@@ -500,15 +500,15 @@ if __name__ == '__main__':
     # print()
 
     sampler, flat_samples = run_mcmc(x_data, y_data, v_data, f_data,
-                                     n_walkers=64, n_burnin=50000, n_production=500000,
+                                     n_walkers=64, n_burnin=20000, n_production=700000,
                                      n_workers=10,
-                                     backend_filename='mcmc_chain_with_pressure_south.h5',
+                                     backend_filename='mcmc_chain_no_pressure_south.h5',
                                      thin_by=50)
 
-    np.savez('mcmc_samples_with_pressure_south.npz',
+    np.savez('mcmc_samples_no_pressure_south.npz',
              flat_samples=flat_samples,
              log_prob=sampler.get_log_prob(thin=50),
              acceptance_fraction=sampler.acceptance_fraction,
     )
 
-    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True,save_prefix="mcmc_with_pressure_south")
+    plot_results(sampler, flat_samples, x_data, y_data, v_data, f_data, multiple_lines=True,save_prefix="mcmc_no_pressure_south")
