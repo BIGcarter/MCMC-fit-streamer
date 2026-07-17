@@ -18,16 +18,16 @@ from visual_orbit import plot_orbit
 # ============================================================
 
 PARAM_CONFIG = {
-    'z':           {'is_constant': False, 'prior_range': [-4000, 100],       'label': r'$z$ [AU]'},  # 0, 1500 north
+    'z':           {'is_constant': False, 'prior_range': [-3000, 0],       'label': r'$z$ [AU]'},  # 0, 1500 north
     'v_r':         {'is_constant': False, 'prior_range': [-10, 1],        'label': r'$v_r$ [km/s]'},
     'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega)$ [round/yr]'},
     'theta_axis':  {'is_constant': False, 'prior_range': [0, 90],         'label': r'$\theta_{axis}$ [deg]'},
     'phi_axis':    {'is_constant': False, 'prior_range': [0, 180],        'label': r'$\phi_{axis}$ [deg]'},
-    'M':           {'is_constant': True,  'value': 10.10,                  'label': r'$M$ [$M_\odot$]'},
+    'M':           {'is_constant': True,  'value': 26,                  'label': r'$M$ [$M_\odot$]'},
     # 'alpha':       {'is_constant': True,  'value': 500,                 'label': r'$\alpha$'},
     'alpha':       {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
-    'x':           {'is_constant': True,  'value': -400.0,                'label': r'$x$ [AU]'},
-    'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -500, 1200 south -440 -1000
+    'x':           {'is_constant': True,  'value': -440,                'label': r'$x$ [AU]'},
+    'y':           {'is_constant': True,  'value': -1000,                'label': r'$y$ [AU]'},   # north -700, 1300 south -440 -1000
 }
 
 NLIVE_INIT = 10000
@@ -35,11 +35,11 @@ N_CPUS = 10
 
 T_SPAN = (0, 3000)
 T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
-STOPPING_R = 200.0
+STOPPING_R = 150.0
 AZIMUTH_MAX_DELTA_DEG = 200.0
 
 OBS_DATA = '../red-ppvf.npz'
-SAVE_SUFFIX = '_no_pressure_M_10_R200_south'
+SAVE_SUFFIX = '_no_pressure_M_26south'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 

@@ -15,8 +15,8 @@ mpl.rcParams['font.family'] = 'serif'
 # Configuration
 # ============================================================
 
-SAMPLES_FILE = 'ns_samples_no_pressure_north.npz'   # .npz from fit_streamer_ns.py
-SAVE_SUFFIX = '_no_pressure_north'                   # output file suffix
+SAMPLES_FILE = 'ns_samples_no_pressure_M_26_z_100_south.npz'   # .npz from fit_streamer_ns.py
+SAVE_SUFFIX = '_no_pressure_M_26_z_100_south'                   # output file suffix
 
 SMOOTH_1D = True
 SHOW_BEST_FIT = True
@@ -29,7 +29,13 @@ DPI = 150
 OUTPUT = None              # None = auto-name: corner_ns_<suffix>.png
 
 PLOT_RANGE = None          # None = auto; or list of [(lo,hi), ...] per param
-
+# PLOT_RANGE = [
+#     (80,220),
+#     (-2.6,-1.8),
+#     (-4.4,-3.5),
+#     (18,100),
+#     (90,170)
+# ]
 
 # ============================================================
 # Parameter labels
@@ -40,11 +46,11 @@ PLOT_RANGE = None          # None = auto; or list of [(lo,hi), ...] per param
 # Note: omega is linear in the samples; convert to log10 for display.
 
 PARAM_LABELS = [
-    r'$z$ [AU]',
-    r'$v_r$ [km s$^{-1}$]',
-    r'$\log_{10}(\omega)$ [yr$^{-1}$]',
-    r'$\theta_\mathrm{axis}$ [$^\circ$]',
-    r'$\phi_\mathrm{axis}$ [$^\circ$]',
+    r'z [AU]',
+    r'v_r [km/s]',
+    r'log10(omega) [/yr]',
+    r'theta [deg]',
+    r'phi [deg]',
 ]
 
 # ============================================================
@@ -62,6 +68,14 @@ equal_samples[:, omega_idx] = np.log10(equal_samples[:, omega_idx])
 q = np.percentile(equal_samples, [16, 50, 84], axis=0)
 print(f'Samples: {equal_samples.shape[0]}')
 print(f'Median params: {dict(zip([l.strip("$") for l in PARAM_LABELS], q[1]))}')
+
+# MAP (maximum a posteriori) = sample with max log-likelihood
+logl = data['logl']
+all_samples = data['samples']
+map_idx = np.argmax(logl)
+map_params = all_samples[map_idx].copy()
+map_params[omega_idx] = np.log10(map_params[omega_idx])
+print(f'MAP params (max logL = {logl[map_idx]:.2f}): {dict(zip([l.strip("$") for l in PARAM_LABELS], map_params))}\n')
 
 # ============================================================
 # Corner plot
@@ -86,6 +100,7 @@ fig = corner.corner(
     truths=q[1] if SHOW_BEST_FIT else None,
     truth_color=COLOR,
     range=PLOT_RANGE,
+    plot_datapoints=False
 )
 
 outfile = OUTPUT

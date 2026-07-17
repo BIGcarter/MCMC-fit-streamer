@@ -26,15 +26,15 @@ mpl.rcParams['font.family'] = 'serif'
 
 # SAMPLES_FILE = 'ns_samples_no_pressure_north.npz'
 # SAMPLES_FILE = 'ns_samples_no_pressure_south.npz'
-SAMPLES_FILE = 'ns_samples_with_pressure_north.npz'
-SAVE_SUFFIX = '_with_pressure_north'
+SAMPLES_FILE = 'ns_samples_no_pressure_M_26_z_100_north.npz'
+SAVE_SUFFIX = '_no_pressure_M_26_z_100_north'
 
 N_SUBSAMPLE = 0           # 0 = use all; >0 = random subsample (for speed)
 
 SMOOTH_1D = True
 SHOW_BEST_FIT = True
 BINS = 30
-COLOR = 'lightsalmon'        # north: steelblue  red: lightsalmon
+COLOR = 'steelblue'        # north: steelblue  red: lightsalmon
 TITLE_FONT_SIZE = 11
 LABEL_FONT_SIZE = 15
 DPI = 150
@@ -54,11 +54,11 @@ FREE_NAMES = ['z', 'v_r', 'omega', 'theta_axis', 'phi_axis']
 PLOT_RANGE = None           # None = auto;
 
 ## North
-# PLOT_RANGE = [
-#     (2000, 9000),
-#     (65, 85),
-#     (100, 170),
-# ]
+PLOT_RANGE = [
+    (3400, 4400),
+    (90, 100),
+    (135, 162),
+]
 
 ## South
 # PLOT_RANGE = [
@@ -206,6 +206,7 @@ fig = corner.corner(
     truths=q[1] if SHOW_BEST_FIT else None,
     truth_color=COLOR,
     range=PLOT_RANGE,
+    plot_datapoints=False
 )
 
 outfile = f'{OUTPUT_PREFIX}{SAVE_SUFFIX}_corner.png'

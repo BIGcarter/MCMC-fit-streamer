@@ -26,7 +26,7 @@ from visual_orbit import plot_orbit_combined
 
 PARAM_CONFIG = {
     # --- shared ---
-    'M':                {'is_constant': False, 'prior_range': [20,100],       'label': r'$M$ [$M_\odot$]'},
+    'M':                {'is_constant': True, 'value': 26,       'label': r'$M$ [$M_\odot$]'},
     'alpha':            {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
 
     # --- blue (north) ---
@@ -62,7 +62,7 @@ AZIMUTH_MAX_DELTA_DEG = 200.0
 
 OBS_DATA_BLUE = '../blue-ppvf.npz'
 OBS_DATA_RED = '../red-ppvf.npz'
-SAVE_SUFFIX = '_M_Free_20to100_combined'
+SAVE_SUFFIX = '_M_26_combined'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 
