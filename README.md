@@ -8,7 +8,7 @@ This is a research codebase. Fitting scripts are configured through top-level co
 
 ```bash
 python run_streamer_model.py          # Integrate and visualize one trajectory
-python fit_streamer_ns_codex_v2.py    # Current single-lobe dynamic nested sampling
+python fit_streamer_ns_v2.py    # Current single-lobe dynamic nested sampling
 python fit_streamer_ns_combine.py     # Joint blue/red dynamic nested sampling
 ```
 
@@ -21,7 +21,7 @@ The nested-sampling configurations use many live points and can run for a long t
 | `streamer_ic.py` | Mendoza/Ulrich initial conditions and coordinate conversion |
 | `streamer_model.py` | Gravity/drag ODE, RK45 integration, stopping event, azimuth cutoff, tube sampling |
 | `run_streamer_model.py` | Single-trajectory configuration and Plotly visualization |
-| `fit_streamer_ns_codex_v2.py` | Current single-lobe dynamic nested sampling with optional flux-weighted PPV loss |
+| `fit_streamer_ns_v2.py` | Current single-lobe dynamic nested sampling with optional flux-weighted PPV loss |
 | `fit_streamer_ns_combine.py` | Joint blue/red dynamic nested sampling with per-lobe flux weights |
 | `visual_orbit.py` | Single- and combined-lobe PPP/PPV visualization |
 | `cluster_ns_samples.py` | Nested-sampling posterior clustering |
@@ -159,7 +159,7 @@ Cheap checks should precede any sampling run:
 
 ```bash
 python -m py_compile streamer_ic.py streamer_model.py
-python -m py_compile fit_streamer_ns_codex_v2.py
+python -m py_compile fit_streamer_ns_v2.py
 python -m py_compile fit_streamer_ns_combine.py
 ```
 
