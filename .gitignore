@@ -6,6 +6,9 @@
 *.md
 *.h5
 !README.md
+!blue-ppvf.npz
+!red-ppvf.npz
+!ppvf.npz
 
 .DS_Store
 .claude/
