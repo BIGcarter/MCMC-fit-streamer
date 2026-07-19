@@ -493,13 +493,13 @@ def plot_orbit_combined(
 
 if __name__ == '__main__':
     # --- Model parameters (edit these) ---
-    X = -320            # starting position [AU] 
-    Y = -1050           # -440, -1000
-    Z = -287             # -804
-    V_R = -4.7        # radial infall velocity [km/s]
+    X = -400            # starting position [AU] 
+    Y = -1000           # -440, -1000
+    Z = -545             # -804
+    V_R = -0.42        # radial infall velocity [km/s]
     LOG10_OMEGA = -3.8  # log10(rotation rate [round/yr])
-    THETA_AXIS = 15.2  # rotation-axis zenith [deg]
-    PHI_AXIS = 175.1    # rotation-axis azimuth [deg]
+    THETA_AXIS = 5.5  # rotation-axis zenith [deg]
+    PHI_AXIS = 80    # rotation-axis azimuth [deg]
     M_STAR = 26.0         # central mass [M_sun]
     ALPHA = 1e7         # linear-drag coefficient
     T_SPAN = (0, 3000)    # integration time span [yr]
@@ -509,8 +509,8 @@ if __name__ == '__main__':
 
     # --- Observation data ---
     OBS_NPZ = '../red-ppvf.npz'
-    OUTPUT_HTML = 'orbit_view_M26_Z200_south.html'
-    OUTPUT_NPZ = 'orbit_view_M26_Z200_south.npz'   # saved model trajectory (x, y, z, v_los)
+    OUTPUT_HTML = 'orbit_view_south_final.html'
+    OUTPUT_NPZ = 'orbit_view_south_final.npz'   # saved model trajectory (x, y, z, v_los)
 
     # --- Plot config ---
     SIGMA_XY = 60.0

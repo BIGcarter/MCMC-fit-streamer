@@ -15,13 +15,14 @@ mpl.rcParams['font.family'] = 'serif'
 # Configuration
 # ============================================================
 
-SAMPLES_FILE = 'ns_samples_no_pressure_M_26_z_100_south.npz'   # .npz from fit_streamer_ns.py
-SAVE_SUFFIX = '_no_pressure_M_26_z_100_south'                   # output file suffix
+SAMPLES_FILE = 'ns_samples_south_final_v2.npz'   # .npz from fit_streamer_ns.py
+# ns_samples_no_pressure_M_26south_codex_v2.npz
+SAVE_SUFFIX = '_south_final'                   # output file suffix
 
 SMOOTH_1D = True
 SHOW_BEST_FIT = True
 BINS = 30
-COLOR = 'steelblue'        # north: steelblue  red: lightsalmon
+COLOR = 'lightsalmon'        # north: steelblue  red: lightsalmon
 TITLE_FONT_SIZE = 11
 LABEL_FONT_SIZE = 15
 DPI = 150
@@ -30,11 +31,11 @@ OUTPUT = None              # None = auto-name: corner_ns_<suffix>.png
 
 PLOT_RANGE = None          # None = auto; or list of [(lo,hi), ...] per param
 # PLOT_RANGE = [
-#     (80,220),
-#     (-2.6,-1.8),
-#     (-4.4,-3.5),
-#     (18,100),
-#     (90,170)
+#     (-650,-350),
+#     (-1.5,-0.7),
+#     (-4.2,-3.9),
+#     (0,100),
+#     (135,190)
 # ]
 
 # ============================================================

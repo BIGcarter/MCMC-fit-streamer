@@ -26,8 +26,10 @@ mpl.rcParams['font.family'] = 'serif'
 
 # SAMPLES_FILE = 'ns_samples_no_pressure_north.npz'
 # SAMPLES_FILE = 'ns_samples_no_pressure_south.npz'
-SAMPLES_FILE = 'ns_samples_no_pressure_M_26_z_100_north.npz'
-SAVE_SUFFIX = '_no_pressure_M_26_z_100_north'
+# SAMPLES_FILE = 'ns_samples_no_pressure_M_26south_codex_v2.npz'
+SAMPLES_FILE = 'ns_samples_south_final_v4_fluxw.npz'
+# SAMPLES_FILE = 'ns_samples_no_pressure_M_26_north.npz'
+SAVE_SUFFIX = '_south_fluxwt'
 
 N_SUBSAMPLE = 0           # 0 = use all; >0 = random subsample (for speed)
 
@@ -54,11 +56,11 @@ FREE_NAMES = ['z', 'v_r', 'omega', 'theta_axis', 'phi_axis']
 PLOT_RANGE = None           # None = auto;
 
 ## North
-PLOT_RANGE = [
-    (3400, 4400),
-    (90, 100),
-    (135, 162),
-]
+# PLOT_RANGE = [
+#     (3400, 4400),
+#     (90, 100),
+#     (135, 162),
+# ]
 
 ## South
 # PLOT_RANGE = [

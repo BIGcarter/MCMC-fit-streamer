@@ -10,50 +10,29 @@ from dynesty import plotting as dyplot
 
 from streamer_ic import get_streamer_initial_state, cartesian_to_spherical
 from streamer_model import gm_from_mstar, integrate_trajectory, linear_drag, stopping_sphere, azimuth_cutoff_idx
-from visual_orbit import plot_orbit_combined
+from visual_orbit import plot_orbit
 
 # ============================================================
 # Configuration
 # ============================================================
-#
-# Joint fit of the blue (north) and red (south) lobes.
-#   - Shared constants:        M = 26, alpha = 1e7
-#   - Per-lobe free params:    z, v_r, omega, theta_axis, phi_axis
-#   - Per-lobe constants:      x, y
-# Parameter keys are suffixed with the lobe name (_blue / _red).
 
 PARAM_CONFIG = {
-    # --- shared ---
-    'M':                {'is_constant': True, 'value': 26,       'label': r'$M$ [$M_\odot$]'},
-    'alpha':            {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
-
-    # --- blue (north) ---
-    'z_blue':           {'is_constant': False, 'prior_range': [-100, 1500],  'label': r'$z_{\rm b}$ [AU]'},
-    'v_r_blue':         {'is_constant': False, 'prior_range': [-10, 1],      'label': r'$v_{r,\rm b}$ [km/s]'},
-    'omega_blue':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega_{\rm b})$ [round/yr]'},
-    'theta_axis_blue':  {'is_constant': False, 'prior_range': [0, 90],       'label': r'$\theta_{\rm axis,b}$ [deg]'},
-    'phi_axis_blue':    {'is_constant': False, 'prior_range': [0, 180],      'label': r'$\phi_{\rm axis,b}$ [deg]'},
-    'x_blue':           {'is_constant': True,  'value': -500.0,              'label': r'$x_{\rm b}$ [AU]'},
-    'y_blue':           {'is_constant': True,  'value': 1200.0,              'label': r'$y_{\rm b}$ [AU]'},
-
-    # --- red (south) ---
-    'z_red':            {'is_constant': False, 'prior_range': [-3000, -100],  'label': r'$z_{\rm r}$ [AU]'},
-    'v_r_red':          {'is_constant': False, 'prior_range': [-10, 1],      'label': r'$v_{r,\rm r}$ [km/s]'},
-    'omega_red':        {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega_{\rm r})$ [round/yr]'},
-    'theta_axis_red':   {'is_constant': False, 'prior_range': [0, 90],       'label': r'$\theta_{\rm axis,r}$ [deg]'},
-    'phi_axis_red':     {'is_constant': False, 'prior_range': [0, 180],      'label': r'$\phi_{\rm axis,r}$ [deg]'},
-    'x_red':            {'is_constant': True,  'value': -440.0,              'label': r'$x_{\rm r}$ [AU]'},
-    'y_red':            {'is_constant': True,  'value': -1000.0,             'label': r'$y_{\rm r}$ [AU]'},
+    'z':           {'is_constant': False, 'prior_range': [0, 2000],       'label': r'$z$ [AU]'},  # 0, 1500 north
+    'v_r':         {'is_constant': False, 'prior_range': [-10, 1],        'label': r'$v_r$ [km/s]'},
+    'omega':       {'is_constant': False, 'prior_range': [-6, -3], 'log_uniform': True, 'label': r'$\log_{10}(\omega)$ [round/yr]'},
+    'theta_axis':  {'is_constant': False, 'prior_range': [0, 60],         'label': r'$\theta_{axis}$ [deg]'},
+    'phi_axis':    {'is_constant': False, 'prior_range': [60, 180],        'label': r'$\phi_{axis}$ [deg]'},
+    'M':           {'is_constant': True,  'value': 26,                  'label': r'$M$ [$M_\odot$]'},
+    # 'alpha':       {'is_constant': True,  'value': 500,                 'label': r'$\alpha$'},
+    'alpha':       {'is_constant': True,  'value': 1e7,                 'label': r'$\alpha$'},
+    'x':           {'is_constant': True,  'value': -700,                'label': r'$x$ [AU]'},
+    'y':           {'is_constant': True,  'value': 1300,                'label': r'$y$ [AU]'},   # north -700, 1300 south -440 -1000
 }
 
-# Canonical per-lobe parameter names (suffix stripped) fed to compute_trajectory.
-_LOBE_KEYS = ['z', 'v_r', 'omega', 'theta_axis', 'phi_axis', 'x', 'y']
-LOBES = ('blue', 'red')
-
-NLIVE_INIT = 5000
-NLIVE_BATCH = 5000
+NLIVE_INIT = 2500
+NLIVE_BATCH = 1000
 N_EFFECTIVE = 100000
-DLOGZ_INIT = 0.05
+DLOGZ_INIT = 0.02
 N_CPUS = 10
 SAMPLER_SEED = 32
 RESAMPLE_SEED = 33
@@ -64,25 +43,18 @@ T_EVAL = np.linspace(T_SPAN[0], T_SPAN[1], 1200)
 STOPPING_R = 150.0
 AZIMUTH_MAX_DELTA_DEG = 200.0
 
-OBS_DATA_BLUE = '../blue-ppvf.npz'
-OBS_DATA_RED = '../red-ppvf.npz'
-SAVE_SUFFIX = '_M_26_combined_fluxw'
+OBS_DATA = '../blue-ppvf.npz'
+SAVE_SUFFIX = '_north_final_v2_fluxw'
 SIGMA_XY = 60.0
 SIGMA_V = 1.331
 
-# Flux weighting applies independently within each lobe to the data -> model
-# Chamfer term. Weights are normalized to mean 1 within each lobe, preserving
-# the original relative contribution from the number of blue/red data points.
-# Set USE_FLUX_WEIGHTS=False (or gamma=0) to recover equal data-point weights.
+# Flux weighting for the data -> model Chamfer term.  The weights are
+# normalized to mean 1, so enabling them does not arbitrarily rescale the
+# overall likelihood.  Set USE_FLUX_WEIGHTS=False (or gamma=0) to recover
+# equal weighting.  gamma=0.5 gives a tempered sqrt(flux) dependence.
 USE_FLUX_WEIGHTS = True
-FLUX_WEIGHT_GAMMA = 1.0
+FLUX_WEIGHT_GAMMA = 1
 FLUX_CLIP_PERCENTILES = (5.0, 95.0)
-
-# v2 fits only data -> model by default. Enable this to restore the original
-# symmetric Chamfer term, using MODEL_TO_DATA_WEIGHT to control its strength.
-USE_MODEL_TO_DATA_LOSS = False
-MODEL_TO_DATA_WEIGHT = 1.0
-MODEL_TO_DATA_N_SAMPLE = 200
 
 # --- Parse PARAM_CONFIG into free / constant ---
 _free_names = []
@@ -106,21 +78,18 @@ print(f'Free parameters ({N_FREE}): {_free_names}')
 print(f'Constants: {list(_constant_values.keys())}')
 
 # ============================================================
-# Static data & KDTrees (built once, one per lobe)
+# Static data & KDTree (built once)
 # ============================================================
 
-def _load_ppv(path):
-    d = np.load(path)
-    return d['x'], d['y'], d['v'], d['flux']
-
-
-def _build_kdtree(x, y, v):
-    ppv = np.column_stack([x / SIGMA_XY, y / SIGMA_XY, v / SIGMA_V])
-    return KDTree(ppv)
+_data = np.load(OBS_DATA)
+_data_x = _data['x']
+_data_y = _data['y']
+_data_v = _data['v']
+_data_flux = _data['flux']
 
 
 def _build_flux_weights(flux):
-    """Return mean-one Chamfer weights derived from one lobe's flux."""
+    """Return mean-one Chamfer weights derived from observed flux."""
     flux = np.asarray(flux, dtype=float)
     if not USE_FLUX_WEIGHTS or FLUX_WEIGHT_GAMMA == 0:
         return np.ones_like(flux)
@@ -135,35 +104,24 @@ def _build_flux_weights(flux):
     return weights / np.mean(weights)
 
 
-_blue_x, _blue_y, _blue_v, _blue_flux = _load_ppv(OBS_DATA_BLUE)
-_red_x, _red_y, _red_v, _red_flux = _load_ppv(OBS_DATA_RED)
+DATA_WEIGHTS = _build_flux_weights(_data_flux)
+print(
+    f'Flux weighting: enabled={USE_FLUX_WEIGHTS}, '
+    f'gamma={FLUX_WEIGHT_GAMMA:g}, '
+    f'weight range=[{DATA_WEIGHTS.min():.3f}, {DATA_WEIGHTS.max():.3f}]'
+)
 
-DATA_KD_TREE = {
-    'blue': _build_kdtree(_blue_x, _blue_y, _blue_v),
-    'red':  _build_kdtree(_red_x, _red_y, _red_v),
-}
-DATA_XY_RANGE = {
-    'blue': (np.ptp(_blue_x), np.ptp(_blue_y)),
-    'red':  (np.ptp(_red_x), np.ptp(_red_y)),
-}
-DATA_XYV = {
-    'blue': (_blue_x, _blue_y, _blue_v),
-    'red':  (_red_x, _red_y, _red_v),
-}
-DATA_WEIGHTS = {
-    'blue': _build_flux_weights(_blue_flux),
-    'red':  _build_flux_weights(_red_flux),
-}
-for _lobe in LOBES:
-    _weights = DATA_WEIGHTS[_lobe]
-    print(
-        f'Flux weighting ({_lobe}): enabled={USE_FLUX_WEIGHTS}, '
-        f'gamma={FLUX_WEIGHT_GAMMA:g}, '
-        f'weight range=[{_weights.min():.3f}, {_weights.max():.3f}]'
-    )
+_data_ppv = np.column_stack([
+    _data_x / SIGMA_XY,
+    _data_y / SIGMA_XY,
+    _data_v / SIGMA_V,
+])
+DATA_KD_TREE = KDTree(_data_ppv)
+DATA_XY_XRANGE = np.ptp(_data_x)
+DATA_XY_YRANGE = np.ptp(_data_y)
 
 # ============================================================
-# Parameter helpers
+# Trajectory wrapper
 # ============================================================
 
 def _theta_to_params(theta):
@@ -173,26 +131,10 @@ def _theta_to_params(theta):
     return params
 
 
-def _lobe_params(all_params, lobe):
-    """Extract a canonical single-lobe param dict from the full param set.
-
-    Maps lobe-suffixed keys (e.g. ``z_blue``) to canonical names (``z``) and
-    injects the shared ``M`` / ``alpha``.
-    """
-    p = {k: all_params[f'{k}_{lobe}'] for k in _LOBE_KEYS}
-    p['M'] = all_params['M']
-    p['alpha'] = all_params['alpha']
-    return p
-
-
-# ============================================================
-# Trajectory wrapper
-# ============================================================
-
 def compute_trajectory(params):
     z = params['z']
-    x = params['x']
-    y = params['y']
+    x = params.get('x', _constant_values.get('x'))
+    y = params.get('y', _constant_values.get('y'))
 
     r0, theta_part, phi_part = cartesian_to_spherical(x, y, z)
 
@@ -209,8 +151,10 @@ def compute_trajectory(params):
     x0, y0, z0, vx0, vy0, vz0 = get_streamer_initial_state('mendoza', **ic_params)
     initial_state = [x0, y0, z0, vx0, vy0, vz0]
 
-    GM = gm_from_mstar(params['M'])
-    drag_func = linear_drag(alpha=params['alpha'])
+    M_val = params.get('M', _constant_values.get('M'))
+    alpha_val = params.get('alpha', _constant_values.get('alpha'))
+    GM = gm_from_mstar(M_val)
+    drag_func = linear_drag(alpha=alpha_val)
 
     r0 = np.sqrt(x0**2 + y0**2 + z0**2)
     E0 = 0.5 * (vx0**2 + vy0**2 + vz0**2) - GM / r0
@@ -236,31 +180,33 @@ def compute_trajectory(params):
 # Chamfer loss in error-normalized PPV space
 # ============================================================
 
-def chamfer_loss(traj_x, traj_y, traj_v, data_kd_tree, data_weights):
+def chamfer_loss(traj_x, traj_y, traj_v, n_sample=200):
     traj_ppv = np.column_stack([
         traj_x / SIGMA_XY, traj_y / SIGMA_XY, traj_v / SIGMA_V,
     ])
 
     # data -> model
     kd_traj = KDTree(traj_ppv)
-    d_dm, _ = kd_traj.query(data_kd_tree.data)
-    loss = np.sum(data_weights * d_dm ** 2)
+    d_dm, _ = kd_traj.query(DATA_KD_TREE.data)
+    loss_dm = np.sum(DATA_WEIGHTS * d_dm ** 2)
 
     # model -> data
-    if USE_MODEL_TO_DATA_LOSS:
-        n_pts = traj_ppv.shape[0]
-        if n_pts <= MODEL_TO_DATA_N_SAMPLE:
-            sample_ppv = traj_ppv
-        else:
-            idx = np.linspace(
-                0, n_pts - 1, MODEL_TO_DATA_N_SAMPLE, dtype=int,
-            )
-            sample_ppv = traj_ppv[idx]
+    # n_pts = traj_ppv.shape[0]
+    # if n_pts <= n_sample:
+    #     sample_ppv = traj_ppv
+    # else:
+    #     idx = np.linspace(0, n_pts - 1, n_sample, dtype=int)
+    #     sample_ppv = traj_ppv[idx]
 
-        d_md, _ = data_kd_tree.query(sample_ppv)
-        loss += MODEL_TO_DATA_WEIGHT * np.sum(d_md ** 2)
+    # d_md, _ = DATA_KD_TREE.query(sample_ppv)
+    # loss_md = np.sum(d_md ** 2)
+    # loss_md = np.mean(d_md**2)
 
-    return loss
+    # lamb = 0.2
+
+    return loss_dm
+    # return loss_dm + loss_md * len(DATA_KD_TREE.data) * lamb
+    # return loss_dm + loss_md
 
 
 # ============================================================
@@ -280,35 +226,27 @@ def prior_transform(u):
 
 
 # ============================================================
-# Log-likelihood (joint over both lobes)
+# Log-likelihood
 # ============================================================
 
 def log_likelihood(theta):
-    all_params = _theta_to_params(theta)
+    params = _theta_to_params(theta)
 
-    total_loss = 0.0
-    for lobe in LOBES:
-        p = _lobe_params(all_params, lobe)
-        try:
-            traj_x, traj_y, traj_z, traj_v = compute_trajectory(p)
-        except Exception:
-            return -np.inf
+    try:
+        traj_x, traj_y, traj_z, traj_v = compute_trajectory(params)
+    except Exception:
+        return -np.inf
 
-        if traj_x is None:
-            return -np.inf
+    if traj_x is None:
+        return -np.inf
 
-        x_range = np.ptp(traj_x)
-        y_range = np.ptp(traj_y)
-        xr, yr = DATA_XY_RANGE[lobe]
-        if x_range < 0.3 * xr and y_range < 0.3 * yr:
-            return -np.inf
+    x_range = np.ptp(traj_x)
+    y_range = np.ptp(traj_y)
+    if x_range < 0.3 * DATA_XY_XRANGE and y_range < 0.3 * DATA_XY_YRANGE:
+        return -np.inf
 
-        total_loss += chamfer_loss(
-            traj_x, traj_y, traj_v,
-            DATA_KD_TREE[lobe], DATA_WEIGHTS[lobe],
-        )
-
-    return -0.5 * total_loss
+    loss = chamfer_loss(traj_x, traj_y, traj_v)
+    return -0.5 * loss
 
 
 # ============================================================
@@ -372,33 +310,29 @@ if __name__ == '__main__':
              weights=weights,
              logz=logz,
              logzerr=logzerr,
-             free_names=np.array(_free_names),
              sampler_seed=SAMPLER_SEED,
              resample_seed=RESAMPLE_SEED,
              use_flux_weights=USE_FLUX_WEIGHTS,
              flux_weight_gamma=FLUX_WEIGHT_GAMMA,
              flux_clip_percentiles=FLUX_CLIP_PERCENTILES,
-             blue_data_weights=DATA_WEIGHTS['blue'],
-             red_data_weights=DATA_WEIGHTS['red'],
-             use_model_to_data_loss=USE_MODEL_TO_DATA_LOSS,
-             model_to_data_weight=MODEL_TO_DATA_WEIGHT,
-             model_to_data_n_sample=MODEL_TO_DATA_N_SAMPLE,
+             data_weights=DATA_WEIGHTS,
     )
 
     # --- Build visualization results with omega in log10 space ---
-    omega_indices = [i for i, n in enumerate(_free_names) if n.startswith('omega')]
+    omega_idx = _free_names.index('omega')
     results_viz = copy.deepcopy(results)
-    for oi in omega_indices:
-        results_viz.samples[:, oi] = np.log10(results_viz.samples[:, oi])
+    results_viz.samples[:, omega_idx] = np.log10(results_viz.samples[:, omega_idx])
 
     # --- Summary plot (logZ, dlogZ, nlive vs ncall) ---
     fig_summary, axes_summary = dyplot.runplot(results)
     fig_summary.savefig(f'ns_summary{SAVE_SUFFIX}.png', dpi=150)
+    # print('Summary plot saved to ns_summary.png')
 
     # --- Trace plots ---
     param_labels = _param_labels
     fig_trace, axes_trace = dyplot.traceplot(results_viz, labels=param_labels)
     fig_trace.savefig(f'ns_trace{SAVE_SUFFIX}.png', dpi=150)
+    # print('Trace plots saved to ns_trace.png')
 
     # --- Corner plot ---
     fig_corner, axes_corner = dyplot.cornerplot(results_viz, labels=param_labels,
@@ -406,60 +340,71 @@ if __name__ == '__main__':
                                                  show_titles=True,
                                                  title_kwargs={'fontsize': 10})
     fig_corner.savefig(f'ns_corner{SAVE_SUFFIX}.png', dpi=150)
+    # print('Corner plot saved to ns_corner.png')
+
+    # --- Bounding distribution plot (pairwise grid) ---
+    # try:
+    #     import matplotlib.pyplot as plt
+    #     nd = N_FREE
+    #     fig_bound, axes = plt.subplots(nd, nd, figsize=(3 * nd, 3 * nd))
+    #     for i in range(nd):
+    #         for j in range(nd):
+    #             ax = axes[i, j] if nd > 1 else axes
+    #             if i == j:
+    #                 ax.text(0.5, 0.5, _free_names[i], ha='center', va='center',
+    #                         transform=ax.transAxes, fontsize=10)
+    #                 ax.set_xticks([]); ax.set_yticks([])
+    #             elif j < i:
+    #                 dyplot.boundplot(results_viz, dims=(j, i), it=-1, ax=ax,
+    #                                 show_titles=False)
+    #             else:
+    #                 ax.axis('off')
+    #     fig_bound.tight_layout()
+    #     fig_bound.savefig('ns_bound.png', dpi=150)
+    # except Exception:
+    #     print("bound plot errors.")
 
     # --- Best-fit: posterior median (more robust than max-likelihood) ---
     best_theta = np.median(equal_samples, axis=0)
-    all_params_bf = _theta_to_params(best_theta)
+    params_bf = _theta_to_params(best_theta)
 
     print(f'\nBest-fit params (posterior median):')
     for name in _free_names:
-        print(f'  {name} = {all_params_bf[name]:.4g}')
+        print(f'  {name} = {params_bf[name]:.4g}')
     print(f'  lnZ = {logz:.3f} +/- {logzerr:.3f}')
 
-    # --- Best-fit trajectory + posterior samples per lobe ---
+    traj_x, traj_y, traj_z, traj_v = compute_trajectory(params_bf)
+    if traj_x is None:
+        print('WARNING: Best-fit trajectory computation failed!')
+        sys.exit(1)
+
+    # --- Posterior trajectory samples ---
     N_LINES = 100
+    multi_trajs = []
     rng = np.random.default_rng(42)
     idx_samples = rng.choice(len(equal_samples),
                              size=min(N_LINES, len(equal_samples)),
                              replace=False)
+    for idx in idx_samples:
+        p = equal_samples[idx]
+        pm = _theta_to_params(p)
+        tx, ty, tz, tv = compute_trajectory(pm)
+        if tx is not None:
+            multi_trajs.append((tx, ty, tz, tv))
+    print(f'Posterior trajectories: {len(multi_trajs)}/{min(N_LINES, len(equal_samples))} computed')
 
-    lobes_viz = []
-    traj_save = {}
-    for lobe in LOBES:
-        params_bf = _lobe_params(all_params_bf, lobe)
-        traj_x, traj_y, traj_z, traj_v = compute_trajectory(params_bf)
-        if traj_x is None:
-            print(f'WARNING: Best-fit {lobe} trajectory computation failed!')
-            sys.exit(1)
-
-        multi_trajs = []
-        for idx in idx_samples:
-            pm = _lobe_params(_theta_to_params(equal_samples[idx]), lobe)
-            tx, ty, tz, tv = compute_trajectory(pm)
-            if tx is not None:
-                multi_trajs.append((tx, ty, tz, tv))
-        print(f'Posterior trajectories ({lobe}): {len(multi_trajs)}/{len(idx_samples)} computed')
-
-        data_x, data_y, data_v = DATA_XYV[lobe]
-        lobes_viz.append(dict(
-            traj_x=traj_x, traj_y=traj_y, traj_z=traj_z, traj_v=traj_v,
-            data_x=data_x, data_y=data_y, data_v=data_v,
-            geom_x=params_bf['x'], geom_y=params_bf['y'], geom_z=params_bf['z'],
-            theta_axis_deg=params_bf['theta_axis'], phi_axis_deg=params_bf['phi_axis'],
-            multi_trajs=multi_trajs,
-        ))
-        traj_save[f'{lobe}_x'] = traj_x
-        traj_save[f'{lobe}_y'] = traj_y
-        traj_save[f'{lobe}_z'] = traj_z
-        traj_save[f'{lobe}_v_los'] = traj_v
-
-    # --- Combined PPP + PPV Plotly figure (both lobes overlaid) ---
-    plot_orbit_combined(
-        lobes_viz,
+    # --- PPP + PPV Plotly figure ---
+    plot_orbit(
+        traj_x, traj_y, traj_z, traj_v,
+        _data_x, _data_y, _data_v,
+        params_bf['x'], params_bf['y'], params_bf['z'],
+        params_bf['theta_axis'], params_bf['phi_axis'],
+        multi_trajs=multi_trajs,
         sigma_xy=SIGMA_XY, sigma_v=SIGMA_V,
         v_range=(-6, 6),
         output_html=f'ns_bestfit{SAVE_SUFFIX}.html',
     )
+    # print('Best-fit trajectory saved to ns_bestfit.html')
 
     # --- Summary percentiles ---
     q = np.percentile(equal_samples, [16, 50, 84], axis=0)
@@ -468,8 +413,7 @@ if __name__ == '__main__':
         print(f'  {name}: {q[1, i]:.4g}  (-{q[1, i] - q[0, i]:.3g} / +{q[2, i] - q[1, i]:.3g})')
 
     np.savez(f'ns_trajectory{SAVE_SUFFIX}.npz',
+             x=traj_x, y=traj_y, z=traj_z, v_los=traj_v,
              params=q,
-             free_names=np.array(_free_names),
-             **traj_save,
     )
     print(f'Trajectory data saved to ns_trajectory{SAVE_SUFFIX}.npz')

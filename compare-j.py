@@ -22,9 +22,9 @@ mpl.rcParams['font.family'] = 'serif'
 # FILE_2 = 'angular_momentum_red_samples.npz'
 
 # NS
-FILE_1 = 'angular_momentum_ns_no_pressure_north.npz'
+FILE_1 = 'angular_momentum_ns_no_pressure_M_26_z_100_north.npz'
 # FILE_2 = 'angular_momentum_ns_no_pressure_south.npz'
-FILE_2 = "angular_momentum_south_samples.npz"
+FILE_2 = "angular_momentum_ns_no_pressure_M_26_south_codex.npz"
 
 LABEL_1 = 'North'
 LABEL_2 = 'South'
@@ -65,12 +65,12 @@ RESCALE_HIST = True     # independently scale 1D KDE heights
 
 # NS
 HIST_SCALE = [
-    (0.11, 7, 1),   # |j|
-    (0.16, 6.5, 1),   # θ_j
-    (0.13, 8, 1),   # φ_j
+    (0.4, 1, 1),   # |j|
+    (0.3, 1, 1),   # θ_j
+    (0.3, 1, 1),   # φ_j
 ]
 
-PLOT_NET = True  # if True, compute & overplot j_blue + j_red via independent draws
+PLOT_NET = False  # if True, compute & overplot j_blue + j_red via independent draws
 
 # PLOT_RANGE = None
 ## No Net
@@ -94,7 +94,7 @@ else:
             (90,170)
 ]
 
-# PLOT_RANGE = None
+PLOT_RANGE = None
 
 
 # ============================================================
@@ -333,7 +333,7 @@ if PLOT_NET:
              bbox=dict(boxstyle='round', facecolor='white', alpha=0.85, edgecolor=COLOR_NET))
 
 
-OUTPUT = 'angular_momentum_comparison_blue_ns_red_mcmc.png'
+OUTPUT = 'angular_momentum_comparison_blue_red_ns.png'
 
 fig.savefig(OUTPUT, dpi=DPI, bbox_inches='tight')
 print(f'\nComparison plot saved to {OUTPUT}')
