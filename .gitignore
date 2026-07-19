@@ -12,6 +12,7 @@
 .worktrees/
 __pycache__/
 .tmp/
+docs/
 
 ./channel-peak.ipynb
 

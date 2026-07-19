@@ -1,8 +1,8 @@
-# Modified Mendoza Infall Model
+# SPIN: Streamer Parameter Inference with Nested Sampling
 
-Ballistic streamer/infall modeling for the protostellar source IRAS 09018-4816. The code integrates trajectories under stellar gravity with optional linear drag and fits them to observed position-position-velocity (PPV) points using MCMC or dynamic nested sampling.
+Ballistic streamer/infall modeling for streamers around protostars. The code integrates trajectories under stellar gravity and fits them to observed position-position-velocity (PPV) points using dynamic nested sampling.
 
-This is a research codebase. Fitting scripts are configured through top-level constants; inspect all priors, fixed parameters, data paths, output suffixes, and sampler settings before starting an expensive run.
+Fitting scripts are configured through top-level constants; inspect all priors, fixed parameters, data paths, output suffixes, and sampler settings before starting an expensive run.
 
 ## Quick Start
 
